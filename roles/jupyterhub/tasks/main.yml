@@ -1,0 +1,16 @@
+---
+# tasks file for jupyterhub
+
+- name: Add an user
+  user:
+    name: foo
+    state: present
+    password: "$6$rounds=656000$CKVNRAbFzz9M6k/x$cI4Wv1Osx7ZwCmKel1aLssciYLDITRrbDa6AjAAd3HEDMKGtpx9stm1oqIKMzK5U8JddEDii2UE1/vPUYiDHs."
+  sudo: yes
+
+- name: Add jupyterhub files
+  copy:
+    src: jupyterhub
+    dest: /jupyterhub
+  sudo: yes
+
