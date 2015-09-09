@@ -5,4 +5,5 @@
 #    - git
 #    - tmux
 #    - docker
+#    - docker_py
     - jupyterhub    

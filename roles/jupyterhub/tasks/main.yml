@@ -1,16 +1,44 @@
 ---
 # tasks file for jupyterhub
 
-- name: Add an user
-  user:
-    name: foo
-    state: present
-    password: "$6$rounds=656000$CKVNRAbFzz9M6k/x$cI4Wv1Osx7ZwCmKel1aLssciYLDITRrbDa6AjAAd3HEDMKGtpx9stm1oqIKMzK5U8JddEDii2UE1/vPUYiDHs."
-  sudo: yes
+- block:
+    - name: Add jupyterhub files
+      copy:
+        src: jupyterhub
+        dest: /jupyterhub
+      sudo: yes
+      register: sources
 
-- name: Add jupyterhub files
-  copy:
-    src: jupyterhub
-    dest: /jupyterhub
-  sudo: yes
+    - name: Build image
+      docker_image:
+        name: jupyterhub
+        path: /jupyterhub/jupyterhub
+        state: build
+      when: sources.changed
+#      sudo: yes
+  rescue:
+    - name: Remove sources
+      file:
+        path: /jupyterhub
+        state: absent
+      sudo: yes
 
+- name: Run the container
+  docker:
+    image: jupyterhub
+    name: jupyterhub_1
+    state: started
+    expose:
+      - 8000
+    ports:
+      - "9000:8000"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker/sock"
+  sudo: yes
+  register: container
+
+- debug: msg="{{ container }}"
+
+- debug: msg="{{ item }}"
+  with_items: users
+  

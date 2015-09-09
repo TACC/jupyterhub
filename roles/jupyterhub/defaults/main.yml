@@ -1,2 +1,6 @@
 ---
 # defaults file for jupyterhub
+
+users:
+  - [ 'user1', 2000 ]
+  - [ 'user2', 2001 ]
