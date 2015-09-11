@@ -2,5 +2,7 @@
 # defaults file for jupyterhub
 
 users:
-  - [ 'user1', 2000 ]
-  - [ 'user2', 2001 ]
+  - username: foo
+    uid: 2000
+  - username: bar
+    uid: 2001

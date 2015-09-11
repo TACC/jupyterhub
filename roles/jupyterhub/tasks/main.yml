@@ -15,7 +15,7 @@
         path: /jupyterhub/jupyterhub
         state: build
       when: sources.changed
-#      sudo: yes
+      sudo: yes
   rescue:
     - name: Remove sources
       file:
@@ -37,8 +37,17 @@
   sudo: yes
   register: container
 
+- name: Ensure passlib
+  local_action: pip name=passlib state=present
+  sudo: yes
+  
 - debug: msg="{{ container }}"
 
-- debug: msg="{{ item }}"
+- name: Create users
+  user:
+    name: "{{ item.username }}"
+    uid: "{{ item.uid }}"
+    password: "{{ lookup('password', '/tmp/passwordfile_'+item.username) | safe | password_hash('sha512') }}"
   with_items: users
+  sudo: yes
   
