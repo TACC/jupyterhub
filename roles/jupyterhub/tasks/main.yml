@@ -1,14 +1,13 @@
 ---
 # tasks file for jupyterhub
+- name: Add jupyterhub files
+  copy:
+    src: jupyterhub
+    dest: /jupyterhub
+  sudo: yes
+  register: sources
 
 - block:
-    - name: Add jupyterhub files
-      copy:
-        src: jupyterhub
-        dest: /jupyterhub
-      sudo: yes
-      register: sources
-
     - name: Build image
       docker_image:
         name: jupyterhub
@@ -22,6 +21,8 @@
         path: /jupyterhub
         state: absent
       sudo: yes
+
+    - fail: msg="Build image failed"
 
 - name: Run the container
   docker:
