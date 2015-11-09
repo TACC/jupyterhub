@@ -11,5 +11,6 @@ galaxy_info:
          - utopic
          - vivid
 dependencies:
+  - docker
   - pip
   
