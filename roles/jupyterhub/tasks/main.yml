@@ -34,7 +34,7 @@
     ports:
       - "9000:8000"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker/sock"
+      - "/var/run/docker.sock:/var/run/docker.sock"
   sudo: yes
   register: container
 
@@ -42,13 +42,4 @@
   local_action: pip name=passlib state=present
   sudo: yes
   
-- debug: msg="{{ container }}"
-
-- name: Create users
-  user:
-    name: "{{ item.username }}"
-    uid: "{{ item.uid }}"
-    password: "{{ lookup('password', '/tmp/passwordfile_'+item.username) | safe | password_hash('sha512') }}"
-  with_items: users
-  sudo: yes
   

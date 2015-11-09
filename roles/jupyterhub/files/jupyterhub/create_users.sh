@@ -1,5 +1,5 @@
 #!/bin/bash
 
-
-cat user_list.txt | while read -r username uid; do
-    adduser 
+adduser tacc
+echo -e "tacc:tacc" | chpasswd
+echo -e "root:root" | chpasswd
