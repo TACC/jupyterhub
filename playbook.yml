@@ -2,8 +2,8 @@
 
 - hosts: all
   roles:
-#    - git
-#    - tmux
-#    - docker
-#    - docker_py
+    - git
+    - tmux
+    - docker
+    - docker_py
     - jupyterhub    
