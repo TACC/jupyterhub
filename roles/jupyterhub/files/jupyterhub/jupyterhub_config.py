@@ -2,7 +2,7 @@ import os
 
 
 c = get_config()
-c.JupyterHub.spawner_class = 'dockerspawner.SystemUserSpawner'
+c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
 
 import jupyter_client
 c.JupyterHub.hub_ip = jupyter_client.localinterfaces.public_ips()[0]
