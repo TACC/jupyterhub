@@ -36,11 +36,11 @@
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     env:
-      OAUTH_CALLBACK_URL: http://129.114.6.51/hub/oauth_callback
-      AGAVE_CLIENT_ID: iVlh5I4_I6I0b3_NJE2xTUfWAdYa
-      AGAVE_CLIENT_SECRET: h4qMtPMGZH7DqsbFD2mA4Ssx9B0a
-      AGAVE_BASE_URL: dev.tenants.staging.agaveapi.co
-      AGAVE_TENANT_NAME: Staging
+      OAUTH_CALLBACK_URL: "{{ oauth_callback_url }}"
+      AGAVE_CLIENT_ID: "{{ agave_client_id }}"
+      AGAVE_CLIENT_SECRET: "{{ agave_client_secret }}"
+      AGAVE_BASE_URL: "{{ agave_base_url }}"
+      AGAVE_TENANT_NAME: "{{ agave_tenant_name }}"
   sudo: yes
   register: container
 
