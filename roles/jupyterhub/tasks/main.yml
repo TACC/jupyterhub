@@ -32,9 +32,15 @@
     expose:
       - 8000
     ports:
-      - "9000:8000"
+      - "80:8000"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+    env:
+      OAUTH_CALLBACK_URL: http://129.114.6.51/hub/oauth_callback
+      AGAVE_CLIENT_ID: iVlh5I4_I6I0b3_NJE2xTUfWAdYa
+      AGAVE_CLIENT_SECRET: h4qMtPMGZH7DqsbFD2mA4Ssx9B0a
+      AGAVE_BASE_URL: dev.tenants.staging.agaveapi.co
+      AGAVE_TENANT_NAME: Staging
   sudo: yes
   register: container
 
