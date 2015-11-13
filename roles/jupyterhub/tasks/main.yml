@@ -48,4 +48,11 @@
   local_action: pip name=passlib state=present
   sudo: yes
   
-  
+- name: Ensure hostname in /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: '127.0.0.1 jupyterhub'
+    state: present
+  sudo: yes
+
+    
