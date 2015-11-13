@@ -7,13 +7,26 @@
   sudo: yes
   register: sources
 
+- name: See if jupyter/singleuser available
+  command: docker inspect jupyter/singleuser
+  sudo: yes
+  changed_when: false
+  ignore_errors: yes
+  register: singleuser_ok
+  
+- name: Pull jupyter image for users
+  command: docker pull jupyter/singleuser
+  when: singleuser_ok|failed
+  sudo: yes
+  register: user_image
+
 - block:
     - name: Build image
       docker_image:
         name: jupyterhub
         path: /jupyterhub/jupyterhub
         state: build
-      when: sources.changed
+      when: sources.changed or user_image.changed
       sudo: yes
   rescue:
     - name: Remove sources
@@ -32,7 +45,7 @@
     expose:
       - 8000
     ports:
-      - "80:8000"
+      - "8000:8000"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     env:
@@ -55,4 +68,3 @@
     state: present
   sudo: yes
 
-    
