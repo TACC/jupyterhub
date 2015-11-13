@@ -1,0 +1,5 @@
+---
+
+nginx_server_name: jupyter
+nginx_location: /
+nginx_self_sign: yes

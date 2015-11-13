@@ -1,0 +1,52 @@
+---
+# tasks file for nginx
+
+- name: Install nginx
+  apt:
+    name: nginx
+    state: latest
+  sudo: yes
+  notify: Make sure nginx is running
+
+- name: Add self signed certs
+  copy:
+    src: certs
+    dest: /etc/nginx
+  sudo: yes
+  when: nginx_self_sign is defined and nginx_self_sign
+  notify: Reload nginx
+
+- name: Add config file
+  template:
+    src: jupyterhub.j2
+    dest: /etc/nginx/sites-available/jupyterhub
+  sudo: yes
+  notify: Reload nginx
+
+- name: Disable default site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  sudo: yes
+  notify: Reload nginx
+
+- name: Enable jupyterhub site
+  file:
+    path: /etc/nginx/sites-enabled/jupyterhub
+    src: /etc/nginx/sites-available/jupyterhub
+    state: link
+  sudo: yes
+  notify: Reload nginx
+
+- name: Ensure htpasswd util
+  apt:
+    name: apache2-utils
+    state: latest
+  sudo: yes
+
+- name: Install users for basic auth
+  copy:
+    src: htpasswd
+    dest: /etc/nginx/.htpasswd
+  sudo: yes
+  notify: Reload nginx
