@@ -7,16 +7,16 @@
   sudo: yes
   register: sources
 
-- name: See if jupyter/singleuser available
-  command: docker inspect jupyter/singleuser
+- name: See if the user image is available
+  shell: "docker inspect {{ user_image }} >/dev/null 2>&1"
   sudo: yes
   changed_when: false
   ignore_errors: yes
-  register: singleuser_ok
+  register: user_image_ok
   
 - name: Pull jupyter image for users
-  command: docker pull jupyter/singleuser
-  when: singleuser_ok|failed
+  command: "docker pull {{ user_image }}"
+  when: user_image_ok|failed
   sudo: yes
   register: user_image
 

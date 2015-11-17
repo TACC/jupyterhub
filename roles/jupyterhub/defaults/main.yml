@@ -1,6 +1,7 @@
 ---
 # defaults file for jupyterhub
 
+user_image: jupyter/singleuser
 oauth_callback_url: http://example.com
 agave_client_id: client_id
 agave_client_secret: client_secret
