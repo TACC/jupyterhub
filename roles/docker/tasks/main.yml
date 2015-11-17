@@ -1,0 +1,74 @@
+---
+
+- name: Refresh apt cache
+  apt:
+    update_cache: yes
+  sudo: yes
+
+- name: Ensure https transport available
+  apt:
+    name: "{{ item }}"
+    state: present
+  sudo: yes
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+
+- name: Get kernel version number
+  shell: uname -r
+  register: kernel_version
+  changed_when: False
+  
+- name: Ensure AUFS kernel extensions are available
+  apt:
+    name: "{{ item }}"
+    state: present
+  sudo: yes
+  with_items:
+    - linux-image-extra-{{ kernel_version.stdout }}
+    - linux-image-extra-virtual
+
+- name: Import key
+  apt_key:
+    keyserver: hkp://p80.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+    state: present
+  sudo: yes
+
+- name: Add docker repository
+  apt_repository:
+    repo: "deb https://apt.dockerproject.org/repo ubuntu-trusty main"
+    state: present
+  sudo: yes
+  notify:
+    - Update apt cache
+
+- meta: flush_handlers
+
+- name: Install docker
+  apt: name="docker-engine={{ docker_version }}"
+  sudo: yes
+
+- name: Ensure bridge utils are installed
+  apt: name=bridge-utils state=present
+  sudo: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ docker_user }}"
+    append: yes
+    groups: docker
+  sudo: yes
+
+- name: Ensure docker daemon is running
+  service:
+    name: docker
+    state: started
+  sudo: yes
+
+- name: Install docker-compose
+  get_url:
+    url: https://github.com/docker/compose/releases/download/1.4.0/docker-compose-Linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: a+rx
+  sudo: yes
