@@ -26,7 +26,7 @@
         name: jupyterhub
         path: /jupyterhub/jupyterhub
         state: build
-      when: sources.changed or user_image.changed
+      when: sources.changed or user_image.changed or force_build
       sudo: yes
   rescue:
     - name: Remove sources
