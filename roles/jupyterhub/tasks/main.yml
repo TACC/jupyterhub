@@ -7,8 +7,16 @@
   sudo: yes
   register: sources
 
+- name: Render jupyterhub config
+  template:
+    src: jupyterhub_config.py.j2
+    dest: /jupyterhub/jupyterhub/jupyterhub_config.py
+  sudo: yes
+  
 - name: See if the user image is available
   shell: "docker inspect {{ user_image }} >/dev/null 2>&1"
+  args:
+    warn: no
   sudo: yes
   changed_when: false
   ignore_errors: yes
@@ -41,13 +49,14 @@
   docker:
     image: jupyterhub
     name: jupyterhub_1
-    state: started
+    state: reloaded
     expose:
       - 8000
     ports:
       - "8000:8000"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/tokens:/tokens"
     env:
       OAUTH_CALLBACK_URL: "{{ oauth_callback_url }}"
       AGAVE_CLIENT_ID: "{{ agave_client_id }}"
