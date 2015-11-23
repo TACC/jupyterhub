@@ -1,8 +1,6 @@
 FROM jupyter/jupyterhub
 
 ADD . /jupyterhub
-RUN chmod +x /jupyterhub/create_users.sh
-RUN /jupyterhub/create_users.sh
 
 WORKDIR /root
 RUN git clone https://github.com/TACC/dockerspawner.git
