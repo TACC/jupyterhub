@@ -1,0 +1,20 @@
+version: "2"
+
+services:
+
+  hub:
+    stdin_open: true
+    tty: true
+    build: .
+    command: >
+      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+    ports:
+      - 8000:8000
+    environment:
+      AGAVE_CLIENT_ID: ""
+      AGAVE_CLIENT_SECRET: ""
+      AGAVE_SERVICE_TOKEN: ""
+      AGAVE_BASE_URL: "https://api.tacc.utexas.edu"
+      ACTOR_ID: ""
+      TENANT: ""
+      INSTANCE: "local"
