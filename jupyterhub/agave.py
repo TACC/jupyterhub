@@ -24,7 +24,7 @@ from .oauth2 import OAuthLoginHandler, OAuthenticator
 
 from agavepy.agave import Agave
 
-def get_metadata_name():
+def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(
         os.environ.get('TENANT', 'designsafe-ci'),
         os.environ.get('INSTANCE', 'local'))
@@ -36,7 +36,8 @@ if not service_token:
 
 base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
 ag = Agave(api_server=base_url, token=service_token)
-configs = ag.meta.listMetadata(search={'name.eq': get_metadata_name()})[0]['value']
+q={'name': get_config_metadata_name()}
+configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
 class AgaveMixin(OAuth2Mixin):
     _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(configs.get('agave_base_url'))

@@ -29,10 +29,29 @@ from traitlets import (
     default, observe, validate,
 )
 
-from .objects import Server
-from .traitlets import Command, ByteSpecification, Callable
-from .utils import iterate_until, maybe_future, random_port, url_path_join, exponential_backoff
+# from .objects import Server
+# from .traitlets import Command, ByteSpecification, Callable
+# from .utils import iterate_until, maybe_future, random_port, url_path_join, exponential_backoff
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class AbacoSpawnerError(Exception):
+    def __init__(self, msg):
+        self.message = msg
+
+
+class AbacoSpawnerModelError(AbacoSpawnerError):
+    pass
+
+def get_agave_exception_content(e):
+    """Check if an Agave exception has content"""
+    try:
+        return e.response.content
+    except Exception:
+        return ""
 
 def get_jupyter_instance():
     """Return the Jupyter instance string, default to using the develop instance."""
@@ -41,16 +60,6 @@ def get_jupyter_instance():
 def get_jupyter_tenant():
     """Return the Jupyter tenant string, default to using the dev tenant."""
     return os.environ.get('TENANT', 'dev')
-
-def get_metadata_name(username):
-    """ Return the name associated with a metadata record for a given username and Jupyter instance.
-    :param user:
-    :param instance:
-    :return:
-    """
-    instance = get_jupyter_instance()
-    tenant = get_jupyter_tenant()
-    return '{}-{}-{}-JHub'.format(username, tenant, instance)
 
 class AbacoSpawner(Spawner):
     """Spawner class that leverages an Abaco actor to spawn notebook servers across a datacenter.
@@ -116,14 +125,15 @@ class AbacoSpawner(Spawner):
         """
         ag = self.get_service_client()
         actor_id = os.environ.get('ACTOR_ID')
+        username = self.user.name
 
-        self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}".format(actor_id, os.environ.get('TENANT'), os.environ.get('INSTANCE'), self.user.name))
+        self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}".format(actor_id, os.environ.get('TENANT'), os.environ.get('INSTANCE'), username))
 
         message = {'service_token': os.environ.get('AGAVE_SERVICE_TOKEN'),
                 'agave_base_url': os.environ.get('AGAVE_BASE_URL'),
                 'tenant': os.environ.get('TENANT'),
                 'instance': os.environ.get('INSTANCE'),
-                'user_name': self.user.name,
+                'username': username,
                 'command': 'START'
                 }
         try:
@@ -133,6 +143,13 @@ class AbacoSpawner(Spawner):
             self.log.error(msg)
 
         self.log.info("Called actor {}. Message: {}. Response: {}".format(actor_id, message, rsp))
+        notebook = NotebookMetadata(username, ag)
+        old_status = notebook.get_status()
+        notebook.set_submitted()
+        # ip, port = self.get_ip_and_port(username, ag)
+        ip, port = get_ip_and_port(username, ag)
+        print('ip: {}.  port: {}'.format(ip, port))
+        return str(ip), int(port)
 
     async def stop(self, now=False):
         """Stop the single-user server
@@ -172,10 +189,28 @@ class AbacoSpawner(Spawner):
           process. `poll` should return None when `start` is yielded, indicating that the `start`
           process has not yet completed.
         """
-        raise NotImplementedError("Override in subclass. Must be a Tornado gen.coroutine.")
+        # raise NotImplementedError("Override in subclass. Must be a Tornado gen.coroutine.")
+        ag = self.get_service_client()
+        username = self.user.name
+        notebook = NotebookMetadata(username, ag)
+        if notebook.value['ip'] and notebook.value['port']:
+            return None
+        else:
+            return 0
 
-    async def get_ip_and_port(self):
-        print('getting ip and port')
+    # async def get_ip_and_port(self, username, ag):
+    #     print('getting ip and port')
+    #     notebook = NotebookMetadata(username, ag)
+    #     if notebook.value['ip'] and notebook.value['port']:
+    #         return notebook.value['ip'], notebook.value['port']
+    #     else:
+    #         self.get_ip_and_port(username, ag)
+def get_ip_and_port(username, ag):
+    notebook = NotebookMetadata(username, ag)
+    import ipdb; ipdb.set_trace()
+    if not (notebook.value['ip'] and notebook.value['port']):
+        return get_ip_and_port(username, ag)
+    return str(notebook.value['ip']), int(notebook.value['port'])
 
 
 class NotebookMetadata(object):
@@ -187,25 +222,37 @@ class NotebookMetadata(object):
     stopped_status = "STOPPED"
     error_status = "ERROR"
 
-    def _get_meta_dict(self, status, url=""):
+    def get_metadata_name(self, username):
+        """ Return the name associated with a metadata record for a given username and Jupyter instance.
+        :param user:
+        :return:
+        """
+        instance = get_jupyter_instance()
+        tenant = get_jupyter_tenant()
+        return '{}-{}-{}-JHub'.format(username, tenant, instance)
+
+    # def _get_meta_dict(self, status, url=""):
+    def _get_meta_dict(self, **kwargs):
         """Returns the basic Python dictionary containing the metadata to be stored in Agave."""
         return {"name": self.name,
                 "value": {"name": self.name,
                           "instance": self.instance,
                           "tenant": self.tenant,
-                          "ip": self.ip,
-                          "port": self.port,
-                          "status": status,
-                          "url": url}}
+                          "ip": kwargs.get('ip'),
+                          "port": kwargs.get('port'),
+                          "status": kwargs.get('status'),
+                          "url": kwargs.get('url')}}
 
     def _get_meta(self, ag):
         """Retrieve the meta record from Agave using the agave client, `ag`."""
         try:
-            records = ag.meta.listMetadata(search={'name.eq': get_metadata_name(self.user)})
+            q={'name': self.get_metadata_name(self.username)}
+            records = ag.meta.listMetadata(q=str(q))
+            # records = ag.meta.listMetadata(search={'name.eq': self.get_metadata_name(self.username)})
         except Exception as e:
-            msg = "Python exception trying to get the meta record for user {}. Exception: {}".format(self.user, e)
+            msg = "Python exception trying to get the meta record for user {}. Exception: {}".format(self.username, e)
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
         for m in records:
             if m['name'] == self.name:
                 self.uuid = m['uuid']
@@ -214,16 +261,16 @@ class NotebookMetadata(object):
         else:
             msg = "Did not find meta record for user: {}".format(self.name)
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
 
     def _create_meta(self, ag):
         """Create the meta record in Agave using the agave client, `ag`. """
-        name = get_metadata_name(self.user)
-        d = self._get_meta_dict(self.pending_status)
+        name = self.get_metadata_name(self.username)
+        d = self._get_meta_dict(status=self.pending_status)
         try:
             m = ag.meta.addMetadata(body=json.dumps(d))
         except Exception as e:
-            msg = "Exception trying to create the meta record for user {}. Exception: {}".format(self.user, e)
+            msg = "Exception trying to create the meta record for user {}. Exception: {}".format(self.username, e)
             logger.error(msg)
             raise logger.error(msg)
         self.uuid = m['uuid']
@@ -235,49 +282,46 @@ class NotebookMetadata(object):
                                               body={'permission':'READ_WRITE',
                                                     'username': service_account})
         except Exception as e:
-            msg = "Exception trying to share the meta record for user: {}. Exception:{}".format(self.user, e)
+            msg = "Exception trying to share the meta record for user: {}. Exception:{}".format(self.username, e)
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
 
     def _update_meta(self, ag, d):
         """Update the metadata record value to the data in `d`, a dictionary."""
         if not hasattr(self, 'uuid') or not self.uuid:
             msg = "NotebookMetadata object has no uuid."
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
         if not d:
             msg = "dictionary required for updating metadata."
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
         try:
             m = ag.meta.updateMetadata(uuid=self.uuid, body=d)
         except Exception as e:
-            msg = "Python exception trying to update the meta record for user {}. Exception: {}".format(self.user, e)
+            msg = "Python exception trying to update the meta record for user {}. Exception: {}".format(self.username, e)
             logger.error(msg)
-            raise errors.AbacoSpawnerModelError(msg)
+            raise AbacoSpawnerModelError(msg)
         self.value = m['value']
 
-    def __init__(self, user, ag):
+    def __init__(self, username, ag):
         """
         Construct a metadata object representing a user's notebook server for a JupyterHub instance and tenant. This
         constructor will attempt to fetch the associated metadata record from Agave, but if it does not exist it will
         create it automatically. In the later case, the metadata record will be created in PENDING status.
         """
-        if not user:
-            raise errors.AbacoSpawnerModelError("no user defined.")
+        if not username:
+            raise AbacoSpawnerModelError("no user defined.")
+        self.name = self.get_metadata_name(username)
         self.instance = get_jupyter_instance()
         self.tenant = get_jupyter_tenant()
-        self.user = user
-        self.name = get_metadata_name(user)
-        self.metadata_name = get_metadata_name(user)
+        self.username = username
         self.ag = ag
-        self.ip = None
-        self.port = None
-        self.baseUrl = None
+
         try:
             # try to retrieve the metadata record from agave
             self._get_meta(ag)
-        except errors.AbacoSpawnerModelError:
+        except AbacoSpawnerModelError:
             # if that failed, assume the user does not yet have a meta data record and create one now:
             m = self._create_meta(ag)
 
@@ -313,3 +357,8 @@ class NotebookMetadata(object):
         """Return the status of associated with this terminal,."""
         # refresh the object's representation from Agave:
         return self.value['status']
+
+    def set_ip_and_port(self, ip, port):
+        """Update the status to pending on the user's metadata record for a stopped terminal session."""
+        d = self._get_meta_dict(ip=ip, port=port)
+        return self._update_meta(self.ag, d)

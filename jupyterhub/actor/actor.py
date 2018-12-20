@@ -33,7 +33,7 @@
 import os
 from agavepy.actors import get_context
 from agavepy.agave import Agave
-from jupyterhub.abacospawner import NotebookMetadata
+from abacospawner import NotebookMetadata
 
 
 def get_agave_client(message):
@@ -42,7 +42,7 @@ def get_agave_client(message):
     api_server = message.get("agave_base_url", "https://api.tacc.utexas.edu")
     return Agave(api_server=api_server, token=token)
 
-def get_metadata_name(message):
+def get_config_metadata_name(message):
     return 'config.{}.{}.jhub'.format(
         message.get('tenant', 'designsafe-ci'),
         message.get('instance', 'local'))
@@ -51,12 +51,18 @@ def main():
     context = get_context()
     message = context['message_dict']
     ag = get_agave_client(message)
-    configs = ag.meta.listMetadata(search={'name.eq': get_metadata_name(message)})[0]['value']
+    q={'name': get_config_metadata_name(message)}
+    configs = ag.meta.listMetadata(q=str(q))[0]['value']
     command = message.get('command', 'START')
     print('context["message_dict"]', message)
     print('context["raw_message"]', context["raw_message"])
     print('configs (from metadata)', configs)
-    return ('127.0.0.1', '47609')
+    os.environ['TENANT'] = message.get('tenant')
+    os.environ['INSTANCE'] = message.get('instance')
+    notebook = NotebookMetadata(message.get('username'), ag)
+    #todo call script and parse for ip and port
+    from random import randint
+    notebook.set_ip_and_port(ip='123.123.12.12', port=randint(1,100))
 
 
 main()

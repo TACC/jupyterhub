@@ -3,7 +3,7 @@ import os
 
 from agavepy.agave import Agave
 
-def get_metadata_name():
+def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(
         os.environ.get('TENANT', 'designsafe-ci'),
         os.environ.get('INSTANCE', 'local'))
@@ -11,7 +11,9 @@ def get_metadata_name():
 service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
 base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
 ag = Agave(api_server=base_url, token=service_token)
-configs = ag.meta.listMetadata(search={'name.eq': get_metadata_name()})[0]['value']
+q={'name': get_config_metadata_name()}
+configs = ag.meta.listMetadata(q=str(q))[0]['value']
+print(configs)
 
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
