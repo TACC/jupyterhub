@@ -1,10 +1,10 @@
-# Abaco actor to manage IPT terminals and associated metadata.
+# Abaco actor to manage Jupyterhub notebooks and associated metadata.
 # Supports the following actions, specified by passing the following values in the
 # "command" string:
-#    1. START - Start a new IPT terminal for a user.
-#    2. STOP  - Stop and remove the IPT terminal container associated with a user.
+#    1. START - Start a new Jupyterhub notebooks for a user.
+#    2. STOP  - Stop and remove the Jupyterhub notebook container associated with a user.
 #    3. SYNC  - Sync the metadata record with the existing state of the terminal container
-#               associated with a user. The IPT existence of an IPT container or its state
+#               associated with a user. The Jupyterhub existence of an Jupyterhub container or its state
 #               will not be affected by this command; only the metadata record will be
 #               modified.
 #
@@ -14,21 +14,23 @@
 #
 # PASSED IN AT REGISTRATION (these can be overritten at run time):
 #    - execution_ssh_key (required): The KEY used to access the execution host(s).
-#    - ipt_instance (required): The IPT instance string (e.g. "dev" or "prod").
 
 # PARAMETERS to ALL commands:
 #    - user_name (required): The username to act on.
-#    - access_token (required): An OAuth access token representing the user.
+#    - service_token (required): token for service account.
+#    - agave_base_url (required): base url for service account
 #    - command (optional, defaults to START): the command to use.
+#    - tenant (required)
+#    - instance (required) e.g. local, dev, staging, prod
+#    - username (required)
 #    - execution_ip and execution_ssh_user (optional): Connection information for the
 #           execution host.
-#    - api_server (optional): The Agave api_server to use.
 #
-# Building the image:
-#    docker build -t taccsciapps/ipt-actor -f Dockerfile-actor .
+# Building the image (build from project root):
+#    docker build -t taccsciapps/XXXX -f jupyterhub/actor/Dockerfile .
 #
 # Testing locally:
-#    docker run -it --rm -e MSG='{...}' taccsciapps/ipt-actor
+#    docker run -it --rm -e MSG='{...}' taccsciapps/XXXX
 
 import os
 from agavepy.actors import get_context
