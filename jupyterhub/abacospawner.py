@@ -207,7 +207,6 @@ class AbacoSpawner(Spawner):
     #         self.get_ip_and_port(username, ag)
 def get_ip_and_port(username, ag):
     notebook = NotebookMetadata(username, ag)
-    import ipdb; ipdb.set_trace()
     if not (notebook.value['ip'] and notebook.value['port']):
         return get_ip_and_port(username, ag)
     return str(notebook.value['ip']), int(notebook.value['port'])
