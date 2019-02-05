@@ -26,8 +26,8 @@ from agavepy.agave import Agave
 
 def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(
-        os.environ.get('TENANT', 'designsafe-ci'),
-        os.environ.get('INSTANCE', 'local'))
+        os.environ.get('TENANT'),
+        os.environ.get('INSTANCE'))
 
 service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
 

@@ -1,5 +1,3 @@
-import os
-
 from agavepy.agave import Agave
 from jupyterhub.spawner import Spawner, LocalProcessSpawner
 
@@ -8,6 +6,7 @@ import errno
 import json
 import os
 import pipes
+import requests
 import shutil
 import signal
 import sys
@@ -37,6 +36,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# TAS configuration:
+# base URL for TAS API.
+TAS_URL_BASE = os.environ.get('TAS_URL_BASE', 'https://tas.tacc.utexas.edu/api/v1')
+TAS_ROLE_ACCT = os.environ.get('TAS_ROLE_ACCT', 'tas-jetstream')
+TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 class AbacoSpawnerError(Exception):
     def __init__(self, msg):
@@ -53,13 +57,10 @@ def get_agave_exception_content(e):
     except Exception:
         return ""
 
-def get_jupyter_instance():
-    """Return the Jupyter instance string, default to using the develop instance."""
-    return os.environ.get('INSTANCE', 'develop')
-
-def get_jupyter_tenant():
-    """Return the Jupyter tenant string, default to using the dev tenant."""
-    return os.environ.get('TENANT', 'dev')
+def get_config_metadata_name():
+    return 'config.{}.{}.jhub'.format(
+        os.environ.get('TENANT'),
+        os.environ.get('INSTANCE'))
 
 class AbacoSpawner(Spawner):
     """Spawner class that leverages an Abaco actor to spawn notebook servers across a datacenter.
@@ -123,33 +124,70 @@ class AbacoSpawner(Spawner):
           (str, int): the (ip, port) where the Hub can connect to the server.
 
         """
-        ag = self.get_service_client()
-        actor_id = os.environ.get('ACTOR_ID')
-        username = self.user.name
+        self.actor_id = os.environ.get('ACTOR_ID')
+        self.tenant = os.environ.get('TENANT')
+        self.instance = os.environ.get('INSTANCE')
+        self.set_agave_access_data()
+        self.get_tas_data()
 
-        self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}".format(actor_id, os.environ.get('TENANT'), os.environ.get('INSTANCE'), username))
+        ag = self.get_service_client()
+        q={'name': get_config_metadata_name()}
+        self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
         message = {'service_token': os.environ.get('AGAVE_SERVICE_TOKEN'),
                 'agave_base_url': os.environ.get('AGAVE_BASE_URL'),
-                'tenant': os.environ.get('TENANT'),
-                'instance': os.environ.get('INSTANCE'),
-                'username': username,
-                'command': 'START'
+                'tenant': self.tenant,
+                'instance': self.instance,
+                'username': self.user.name,
+                'command': 'START',
+                'params': {
+                     "uid": self.configs.get('uid', getattr(self, 'tas_uid', None)),
+                     "gid": self.configs.get('gid', getattr(self, 'tas_gid', None)),
+                     # "volume_mounts": self.configs.get('volume_mounts'),
+                     # "image": image,
+                     # "max_cpus": 1,
+                     # "mem_limit": 3,
+                     "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
+                     # "action": "START"
+                    }
                 }
+
+        #todo check if form returns an image
+        if len(self.configs.get('images')) == 1: #only 1 image option
+            message['params']['image'] = self.configs.get('images')[0]
+
+        template_vars = {
+            'username': self.user.name,
+            'tenant_id': self.tenant,
+        }
+        if hasattr(self, 'tas_homedir'):
+            template_vars['tas_homeDirectory'] = self.tas_homedir
+
+        message['params']['volume_mounts'] = []
+        volume_mounts = self.configs.get('volume_mounts')
+        if len(volume_mounts):
+            for vol in volume_mounts:
+                message['params']['volume_mounts'].append(vol.format(**template_vars))
+
+        projects = self.get_projects()
+        if projects:
+            message['params']['volume_mounts'] = message['params']['volume_mounts'] + projects
+
+
         try:
-            rsp = ag.actors.sendMessage(actorId=actor_id, body={'message': message})
+            self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
+            rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
         except Exception as e:
             msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
             self.log.error(msg)
 
-        self.log.info("Called actor {}. Message: {}. Response: {}".format(actor_id, message, rsp))
-        notebook = NotebookMetadata(username, ag)
+        self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
+        notebook = NotebookMetadata(self.user.name, ag)
         old_status = notebook.get_status()
         notebook.set_submitted()
-        # ip, port = self.get_ip_and_port(username, ag)
-        ip, port = get_ip_and_port(username, ag)
-        print('ip: {}.  port: {}'.format(ip, port))
-        return str(ip), int(port)
+        notebook = self.check_notebook_status(ag, NotebookMetadata.ready_status)
+        self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. port: {}".format(self.tenant, self.instance, self.user.name, notebook.value['status'], notebook.value['ip'], notebook.value['port']))
+        return str(notebook.value['ip']), int(notebook.value['port'])
 
     async def stop(self, now=False):
         """Stop the single-user server
@@ -162,7 +200,34 @@ class AbacoSpawner(Spawner):
 
         Must be a coroutine.
         """
-        raise NotImplementedError("Override in subclass. Must be a Tornado gen.coroutine.")
+        ag = self.get_service_client()
+        q={'name': get_config_metadata_name()}
+        self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
+
+        message = {'service_token': os.environ.get('AGAVE_SERVICE_TOKEN'),
+            'agave_base_url': os.environ.get('AGAVE_BASE_URL'),
+            'tenant': self.tenant,
+            'instance': self.instance,
+            'username': self.user.name,
+            'command': 'STOP',
+            'params': {
+                 "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
+                }
+            }
+        try:
+            self.log.info("Calling actor {} to stop {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
+            rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
+        except Exception as e:
+            msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
+            self.log.error(msg)
+
+        self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
+        notebook = NotebookMetadata(self.user.name, ag)
+        old_status = notebook.get_status()
+        notebook = self.check_notebook_status(ag, NotebookMetadata.stopped_status)
+        self.log.info("{} {} jupyterhub for user: {} is {}".format(self.tenant, self.instance, self.user.name, notebook.value['status']))
+        return notebook.value['status']
+
 
     async def poll(self):
         """Check if the single-user process is running
@@ -191,25 +256,154 @@ class AbacoSpawner(Spawner):
         """
         # raise NotImplementedError("Override in subclass. Must be a Tornado gen.coroutine.")
         ag = self.get_service_client()
-        username = self.user.name
-        notebook = NotebookMetadata(username, ag)
-        if notebook.value['ip'] and notebook.value['port']:
+        notebook = NotebookMetadata(self.user.name, ag)
+        if notebook.value['status'] == (NotebookMetadata.ready_status or NotebookMetadata.submitted_status):
             return None
         else:
             return 0
 
-    # async def get_ip_and_port(self, username, ag):
-    #     print('getting ip and port')
-    #     notebook = NotebookMetadata(username, ag)
-    #     if notebook.value['ip'] and notebook.value['port']:
-    #         return notebook.value['ip'], notebook.value['port']
-    #     else:
-    #         self.get_ip_and_port(username, ag)
-def get_ip_and_port(username, ag):
-    notebook = NotebookMetadata(username, ag)
-    if not (notebook.value['ip'] and notebook.value['port']):
-        return get_ip_and_port(username, ag)
-    return str(notebook.value['ip']), int(notebook.value['port'])
+    def set_agave_access_data(self):
+        """
+        Returns the access token and base URL cached in the agavepy file
+        :return:
+        """
+
+        token_file = os.path.join('/tokens', self.tenant, self.user.name, '.agpy')
+        self.log.info("spawner looking for token file: {} for user: {}".format(token_file, self.user.name))
+        if not os.path.exists(token_file):
+            self.log.warn("dockerspawner did not find a token file at {}".format(token_file))
+            self.access_token = None
+            return None
+        try:
+            data = json.load(open(token_file))
+        except ValueError:
+            self.log.warn('could not ready json from token file')
+            return None
+        try:
+            self.access_token = data[0]['token']
+            self.log.info("Setting token: {}".format(self.access_token))
+            self.url = data[0]['api_server']
+            self.log.info("Setting url: {}".format(self.url))
+            return None
+        except (TypeError, KeyError):
+            self.access_token = None
+            self.url = None
+            self.log.warn("token file did not have an access token and/or an api_server. data: {}".format(data))
+        return None
+
+    def get_projects(self):
+        self.host_projects_root_dir = self.configs.get('host_projects_root_dir')
+        self.container_projects_root_dir = self.configs.get('container_projects_root_dir')
+        if not self.host_projects_root_dir or not self.container_projects_root_dir:
+            self.log.info("No host_projects_root_dir or container_projects_root_dir. env: {}".format(os.environ))
+            return None
+        if not self.access_token or not self.url:
+            self.log.info("no access_token or url")
+            return None
+        headers = {'Authorization': 'Bearer {}'.format(self.access_token)}
+        url = '{}/projects/v2/'.format(self.url)
+
+        try:
+            rsp = requests.get(url, headers=headers)
+        except Exception as e:
+            self.log.warn("Got exception calling /projects: {}".format(e))
+            return None
+        try:
+            data = rsp.json()
+        except ValueError as e:
+            self.log.warn("Did not get JSON from /projects. Exception: {}".format(e))
+            self.log.warn("Full response from service: {}".format(rsp))
+            self.log.warn("url used: {}".format(url))
+            return None
+        projects = data.get('projects')
+        self.log.info("service returned projects: {}".format(projects))
+        try:
+            self.log.info("Found {} projects".format(len(projects)))
+            user_projects = []
+        except TypeError:
+            self.log.error("Projects data has no length.")
+            self.log.info("response: {}, data: {}".format(rsp, data))
+            return None
+        for p in projects:
+            uuid = p.get('uuid')
+            if not uuid:
+                self.log.warn("Did not get a uuid for a project: {}".format(p))
+                continue
+            project_id = p.get('value').get('projectId')
+            if not project_id:
+                self.log.warn("Did not get a projectId for a project: {}".format(p))
+                continue
+
+            projects.append('{}/{}:{}/{}:rw'.format(self.host_projects_root_dir,
+                                                  uuid, self.container_projects_root_dir, project_id))
+        return user_projects
+
+    def get_tas_data(self):
+        """Get the TACC uid, gid and homedir for this user from the TAS API."""
+        self.log.info("Top of get_tas_data")
+        if not TAS_ROLE_ACCT:
+            self.log.error("No TAS_ROLE_ACCT configured. Aborting.")
+            return
+        if not TAS_ROLE_PASS:
+            self.log.error("No TAS_ROLE_PASS configured. Aborting.")
+            return
+        url = '{}/users/username/{}'.format(TAS_URL_BASE, self.user.name)
+        headers = {'Content-type': 'application/json',
+                   'Accept': 'application/json'
+                   }
+        try:
+            rsp = requests.get(url,
+                               headers=headers,
+                               auth=requests.auth.HTTPBasicAuth(TAS_ROLE_ACCT, TAS_ROLE_PASS))
+        except Exception as e:
+            self.log.error("Got an exception from TAS API. "
+                           "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(e, url, TAS_ROLE_ACCT))
+            return
+        try:
+            data = rsp.json()
+        except Exception as e:
+            self.log.error("Did not get JSON from TAS API. rsp: {}"
+                           "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(rsp, e, url, TAS_ROLE_ACCT))
+            return
+        try:
+            self.tas_uid = data['result']['uid']
+            self.tas_homedir = data['result']['homeDirectory']
+        except Exception as e:
+            self.log.error("Did not get attributes from TAS API. rsp: {}"
+                           "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(rsp, e, url, TAS_ROLE_ACCT))
+            return
+
+        # first look for an "extended profile" record in agave metadata. such a record might have the
+        # gid to use for this user.
+        self.tas_gid = None
+        if self.access_token and self.url:
+            ag = Agave(api_server=self.url, token=self.access_token)
+            meta_name = 'profile.{}.{}'.format(self.tenant, self.user.name)
+            q = "{'name': '" + meta_name + "'}"
+            self.log.info("using query: {}".format(q))
+            try:
+                rsp = ag.meta.listMetadata(q=q)
+            except Exception as e:
+                self.log.error("Got an exception trying to retrieve the extended profile. Exception: {}".format(e))
+            try:
+                self.tas_gid = rsp[0].value['posix_gid']
+            except IndexError:
+                self.tas_gid = None
+            except Exception as e:
+                self.log.error("Got an exception trying to retrieve the gid from the extended profile. Exception: {}".format(e))
+        # if the instance has a configured TAS_GID to use we will use that; otherwise,
+        # we fall back on using the user's uid as the gid, which is (almost) always safe)
+        if not self.tas_gid:
+            self.tas_gid = os.environ.get('TAS_GID', self.tas_uid)
+        self.log.info("Setting the following TAS data: uid:{} gid:{} homedir:{}".format(self.tas_uid,
+                                                                                        self.tas_gid,
+                                                                                        self.tas_homedir))
+
+    def check_notebook_status(self, ag, status_needed):
+        notebook = NotebookMetadata(self.user.name, ag)
+        if notebook.value['status'] != status_needed:
+            return self.check_notebook_status(ag, status_needed)
+        return notebook
 
 
 class NotebookMetadata(object):
@@ -226,9 +420,7 @@ class NotebookMetadata(object):
         :param user:
         :return:
         """
-        instance = get_jupyter_instance()
-        tenant = get_jupyter_tenant()
-        return '{}-{}-{}-JHub'.format(username, tenant, instance)
+        return '{}-{}-{}-JHub'.format(username, self.tenant, self.instance)
 
     # def _get_meta_dict(self, status, url=""):
     def _get_meta_dict(self, **kwargs):
@@ -311,10 +503,10 @@ class NotebookMetadata(object):
         """
         if not username:
             raise AbacoSpawnerModelError("no user defined.")
-        self.name = self.get_metadata_name(username)
-        self.instance = get_jupyter_instance()
-        self.tenant = get_jupyter_tenant()
+        self.instance = os.environ.get('INSTANCE', 'develop')
+        self.tenant = os.environ.get('TENANT', 'dev')
         self.username = username
+        self.name = self.get_metadata_name(username)
         self.ag = ag
 
         try:
@@ -322,16 +514,18 @@ class NotebookMetadata(object):
             self._get_meta(ag)
         except AbacoSpawnerModelError:
             # if that failed, assume the user does not yet have a meta data record and create one now:
+            msg = "Creating meta record for user: {}".format(self.name)
+            logger.info(msg)
             m = self._create_meta(ag)
 
     def set_submitted(self):
         """Update the status on the user's metadata record for a submitted terminal session."""
-        d = self._get_meta_dict(status=self.submitted_status, url="")
+        d = self._get_meta_dict(status=self.submitted_status, url='')
         return self._update_meta(self.ag, d)
 
-    def set_ready(self, url):
+    def set_ready(self, ip, port, url):
         """Update the status and URL on the user's metadata record for a ready terminal session."""
-        d = self._get_meta_dict(status=self.ready_status, url=url)
+        d = self._get_meta_dict(ip=ip, port=port, status=self.ready_status, url=url)
         return self._update_meta(self.ag, d)
 
     def set_error(self, url=None):
@@ -356,8 +550,3 @@ class NotebookMetadata(object):
         """Return the status of associated with this terminal,."""
         # refresh the object's representation from Agave:
         return self.value['status']
-
-    def set_ip_and_port(self, ip, port):
-        """Update the status to pending on the user's metadata record for a stopped terminal session."""
-        d = self._get_meta_dict(ip=ip, port=port)
-        return self._update_meta(self.ag, d)
