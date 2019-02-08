@@ -101,6 +101,10 @@ def stop_notebook(container_name, conn):
     """Stop and remove a jupyterHub notebook container."""
     command = 'docker service rm {}'.format(container_name)
     _, ssh_stdout, ssh_stderr = conn.exec_command(command)
+    st_out = ssh_stdout.read()
+    print("st out from command: {}".format(st_out))
+    st_err = ssh_stderr.read()
+    print("st err from command: {}".format(st_err))
 
 def main():
     context = get_context()
@@ -123,15 +127,15 @@ def main():
 
     conn, ip = get_ssh_connection(context, message)
     if command == 'START':
-        print('****'*1000, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
+        print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
         port = launch_notebook(message, conn, ip)
         #todo call script and parse for ip and port
-        notebook.set_ready(ip='123.123.12.12', port=port, url='ip:{}'.format(port))
-        print('****'*1000, 'ip: {}. port: {}. '.format(notebook.value['ip'], notebook.value['port']) )
-        print('****'*1000, 'notebook value: {}'.format(notebook.value) )
+        notebook.set_ready(ip=ip, port=port, url='{}:{}'.format(ip, port))
+        print('****'*100, 'notebook value: {}'.format(notebook.value) )
     elif command == 'STOP':
-        container_name = message.get('params["name"]')
-        print('containername: ', container_name)
+        params = message.get('params')
+        container_name = params['name']
+        print('stopping container: ', container_name)
         stop_notebook(container_name, conn)
         notebook.set_stopped()
 
