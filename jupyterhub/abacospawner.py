@@ -295,7 +295,7 @@ class AbacoSpawner(Spawner):
         self.host_projects_root_dir = self.configs.get('host_projects_root_dir')
         self.container_projects_root_dir = self.configs.get('container_projects_root_dir')
         if not self.host_projects_root_dir or not self.container_projects_root_dir:
-            self.log.info("No host_projects_root_dir or container_projects_root_dir. env: {}".format(os.environ))
+            self.log.info("No host_projects_root_dir or container_projects_root_dir. configs: {}".format(self.configs))
             return None
         if not self.access_token or not self.url:
             self.log.info("no access_token or url")
@@ -334,7 +334,7 @@ class AbacoSpawner(Spawner):
                 self.log.warn("Did not get a projectId for a project: {}".format(p))
                 continue
 
-            projects.append('{}/{}:{}/{}:rw'.format(self.host_projects_root_dir,
+            user_projects.append('{}/{}:{}/{}:rw'.format(self.host_projects_root_dir,
                                                   uuid, self.container_projects_root_dir, project_id))
         return user_projects
 
