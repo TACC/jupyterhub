@@ -29,7 +29,7 @@ process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
 text = process.stdout.read()
 print(text)
 
-time.sleep(15)
+time.sleep(2)
 inspect_command="port=\"$(docker service inspect {}|grep PublishedPort| awk ' {{ print substr($2, 1, length($2)-1) }} ')\"; echo $port".format(params['name'])
 print('inspect_command to get the port: {}'.format(inspect_command))
 process = subprocess.Popen(inspect_command, stdout=subprocess.PIPE, shell=True)
