@@ -149,12 +149,17 @@ class AbacoSpawner(Spawner):
                      # "mem_limit": 3,
                      "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
                      # "action": "START"
+                     "environment": self.get_env()
                     }
                 }
+
+        message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
 
         #todo check if form returns an image
         if len(self.configs.get('images')) == 1: #only 1 image option
             message['params']['image'] = self.configs.get('images')[0]
+        else:
+            message['params']['image'] = self.user_options['image']
 
         template_vars = {
             'username': self.user.name,
@@ -175,7 +180,7 @@ class AbacoSpawner(Spawner):
 
 
         try:
-            self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
+            self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}. Message: {}".format(self.actor_id, self.tenant, self.instance, self.user.name, message))
             rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
         except Exception as e:
             msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
@@ -223,6 +228,7 @@ class AbacoSpawner(Spawner):
 
         self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
         notebook = NotebookMetadata(self.user.name, ag)
+        notebook.set_stopped() #TODO clean this up  -- any issue with doing this here instead of actor
         old_status = notebook.get_status()
         notebook = self.check_notebook_status(ag, NotebookMetadata.stopped_status)
         self.log.info("{} {} jupyterhub for user: {} is {}".format(self.tenant, self.instance, self.user.name, notebook.value['status']))
@@ -405,6 +411,10 @@ class AbacoSpawner(Spawner):
             return self.check_notebook_status(ag, status_needed)
         return notebook
 
+    def options_from_form(self, formdata):
+        options = {}
+        options['image'] = formdata['image'][0]
+        return options
 
 class NotebookMetadata(object):
     """Model to hold metadata about a specific user's notebook session."""

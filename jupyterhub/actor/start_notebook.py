@@ -15,15 +15,23 @@ if len(volumes):
         m=item.split(":")
         volume_mounts = volume_mounts + '--mount source={},target={},type=bind '.format(m[0],m[1])
 
+env = data['environment']
+
+environment = ''
+if len(env):
+    for k,v in env.items:
+        environment = environment + '-e {}={} '.format(k,v)
+
 params = {
     'uid':data['uid'],
     'gid':data['gid'],
     'name':data['name'],
     'image':data['image'],
     'volume_mounts':volume_mounts,
+    'environment': environment
 }
 
-command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} --publish 3000 {image}'.format(**params)
+command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} {environment} --publish 3000 {image}'.format(**params)
 print('docker service create command: {}'.format(command))
 process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
 text = process.stdout.read()
