@@ -228,7 +228,7 @@ class AbacoSpawner(Spawner):
 
         self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
         notebook = NotebookMetadata(self.user.name, ag)
-        notebook.set_stopped() #TODO clean this up  -- any issue with doing this here instead of actor
+        notebook.set_stop_submitted()
         old_status = notebook.get_status()
         notebook = self.check_notebook_status(ag, NotebookMetadata.stopped_status)
         self.log.info("{} {} jupyterhub for user: {} is {}".format(self.tenant, self.instance, self.user.name, notebook.value['status']))
@@ -422,6 +422,7 @@ class NotebookMetadata(object):
     pending_status = "PENDING"
     submitted_status = "SUBMITTED"
     ready_status = "READY"
+    stop_submitted_status = "STOP_SUBMITTED"
     stopped_status = "STOPPED"
     error_status = "ERROR"
 
@@ -549,6 +550,11 @@ class NotebookMetadata(object):
     def set_stopped(self):
         """Update the status to stopped on the user's metadata record for a stopped terminal session."""
         d = self._get_meta_dict(status=self.stopped_status, url='')
+        return self._update_meta(self.ag, d)
+
+    def set_stop_submitted(self):
+        """Update the status to stopped on the user's metadata record for a stopped terminal session."""
+        d = self._get_meta_dict(status=self.stop_submitted_status, url='')
         return self._update_meta(self.ag, d)
 
     def set_pending(self):
