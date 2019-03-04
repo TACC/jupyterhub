@@ -462,7 +462,7 @@ class NotebookMetadata(object):
                 return m
         else:
             msg = "Did not find meta record for user: {}".format(self.name)
-            logger.error(msg)
+            logger.warning(msg)
             raise AbacoSpawnerModelError(msg)
 
     def _create_meta(self, ag):
