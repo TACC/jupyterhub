@@ -129,9 +129,16 @@ def main():
     if command == 'START':
         print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
         port = launch_notebook(message, conn, ip)
-        #todo call script and parse for ip and port
-        notebook.set_ready(ip=ip, port=port, url='{}:{}'.format(ip, port))
-        print('****'*100, 'notebook value: {}'.format(notebook.value) )
+        ip_to_return = context.get('execution_private_ip', ip)
+        if message.get('execution_private_ip'):
+            ip_to_return = message.get('execution_private_ip')
+        print('context.get: {} {} {}'.format(context.get('execution_ip'),context.get('execution_private_ip'),context.get('execution_ssh_key')))
+        print('context.get execution_private_ip: {} '.format(context.get('execution_private_ip')))
+        print('context.get: {} '.format(context.get('execution_private_ip', ip)))
+        print('ip_to_return: {} '.format(ip_to_return))
+        #todo see if url is used at all
+        notebook.set_ready(ip=ip_to_return, port=port, url='{}:{}'.format(ip_to_return, port))
+        print('****'*100, 'notebook value: {}'.format(notebook.value))
     elif command == 'STOP':
         params = message.get('params')
         container_name = params['name']
