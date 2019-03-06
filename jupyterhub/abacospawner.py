@@ -226,7 +226,7 @@ class AbacoSpawner(Spawner):
             msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
             self.log.error(msg)
 
-        self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
+        self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
         notebook = NotebookMetadata(self.user.name, ag)
         notebook.set_stop_submitted()
         old_status = notebook.get_status()

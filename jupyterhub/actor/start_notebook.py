@@ -31,7 +31,7 @@ params = {
     'environment': environment
 }
 
-command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} {environment} --publish 3000 {image}'.format(**params)
+command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} {environment} --publish 8888 {image}'.format(**params)
 print('docker service create command: {}'.format(command))
 process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
 text = process.stdout.read()

@@ -290,6 +290,7 @@ c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
 #  differ, or `hub_bind_url` for setting the full bind URL.
 # c.JupyterHub.hub_ip = '127.0.0.1'
 # c.JupyterHub.hub_ip = os.environ.get('HUB_IP')
+c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 
 ## The internal port for the Hub process.
 #
