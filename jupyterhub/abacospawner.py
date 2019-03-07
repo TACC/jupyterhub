@@ -178,6 +178,9 @@ class AbacoSpawner(Spawner):
         if projects:
             message['params']['volume_mounts'] = message['params']['volume_mounts'] + projects
 
+        notebook = NotebookMetadata(self.user.name, ag)
+        old_status = notebook.get_status()
+        notebook.set_submitted()
 
         try:
             self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}. Message: {}".format(self.actor_id, self.tenant, self.instance, self.user.name, message))
@@ -187,9 +190,7 @@ class AbacoSpawner(Spawner):
             self.log.error(msg)
 
         self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
-        notebook = NotebookMetadata(self.user.name, ag)
-        old_status = notebook.get_status()
-        notebook.set_submitted()
+
         notebook = self.check_notebook_status(ag, NotebookMetadata.ready_status)
         self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. port: {}".format(self.tenant, self.instance, self.user.name, notebook.value['status'], notebook.value['ip'], notebook.value['port']))
         return str(notebook.value['ip']), int(notebook.value['port'])
@@ -219,6 +220,11 @@ class AbacoSpawner(Spawner):
                  "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
                 }
             }
+
+        notebook = NotebookMetadata(self.user.name, ag)
+        notebook.set_stop_submitted()
+        old_status = notebook.get_status()
+
         try:
             self.log.info("Calling actor {} to stop {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
             rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
@@ -227,9 +233,7 @@ class AbacoSpawner(Spawner):
             self.log.error(msg)
 
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
-        notebook = NotebookMetadata(self.user.name, ag)
-        notebook.set_stop_submitted()
-        old_status = notebook.get_status()
+
         notebook = self.check_notebook_status(ag, NotebookMetadata.stopped_status)
         self.log.info("{} {} jupyterhub for user: {} is {}".format(self.tenant, self.instance, self.user.name, notebook.value['status']))
         return notebook.value['status']
