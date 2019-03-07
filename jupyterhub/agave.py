@@ -125,25 +125,25 @@ class AgaveOAuthenticator(OAuthenticator):
     def ensure_token_dir(self, username):
         tenant_id = configs.get('agave_tenant_id')
         try:
-            os.makedirs(os.path.join('/tokens', tenant_id, username))
+            os.makedirs(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username))
         except OSError as e:
             self.log.info("Got error trying to make token dir: {}".format(e))
 
     def ensure_log_dir(self, username):
         tenant_id = configs.get('agave_tenant_id')
         try:
-            os.makedirs(os.path.join('/home/apim/logs', tenant_id, username))
-            self.log.info("Created log dir: /home/apim/logs/{}/{}".format(tenant_id, username))
+            os.makedirs(os.path.join('/corral-repl/jupyter/logs', tenant_id, username))
+            self.log.info("Created log dir: /corral-repl/jupyter/logs/{}/{}".format(tenant_id, username))
         except OSError as e:
             self.log.info("Got error trying to make logs dir: {}".format(e))
-        with open('/home/apim/logs/{}/{}/notebook.log'.format(tenant_id, username), 'w') as f:
+        with open('/corral-repl/jupyter/logs/{}/{}/notebook.log'.format(tenant_id, username), 'w') as f:
             f.write("Initial log for {}/{} jupyterhub notebook.".format(tenant_id, username))
-        self.log.info("Saved log file to {}".format(os.path.join('/home/apim/logs/{}/{}/notebook.log', tenant_id, username)))
+        self.log.info("Saved log file to {}".format(os.path.join('/corral-repl/jupyter/logs/{}/{}/notebook.log', tenant_id, username)))
         # try to set the ownership of the cache files to the apim user and an appropriate group. We need to ignore
         # permission errors for portability.
         try:
             uid, gid = self.get_uid_gid()
-            os.chown('/home/apim/logs/{}/{}/notebook.log'.format(tenant_id, username), uid, gid)
+            os.chown('/corral-repl/jupyter/logs/{}/{}/notebook.log'.format(tenant_id, username), uid, gid)
         # if we get a permission error, ignore it because we may be in a different enviornment without an apim user and
         # thus trying to set ownership to root.
         except OSError as e:
@@ -169,7 +169,7 @@ class AgaveOAuthenticator(OAuthenticator):
                                              command='mkdir -p {}'.format(data_dir))
             cli.start(container=container.get('Id'))
         else:
-            data_dir = os.path.join('/home/apim/jupyterhub_userdata', tenant_id, username)
+            data_dir = os.path.join('/corral-repl/jupyter/jupyterhub_userdata', tenant_id, username)
             try:
                 os.makedirs(data_dir)
             except FileExistsError as e:
@@ -217,9 +217,9 @@ class AgaveOAuthenticator(OAuthenticator):
              'api_server': '{}'.format(configs.get('agave_base_url')),
              'verify': eval(configs.get('oauth_validate_cert')),
              }]
-        with open(os.path.join('/tokens', tenant_id, username, '.agpy'), 'w') as f:
+        with open(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, '.agpy'), 'w') as f:
             json.dump(d, f)
-        self.log.info("Saved agavepy cache file to {}".format(os.path.join('/tokens', tenant_id, username, '.agpy')))
+        self.log.info("Saved agavepy cache file to {}".format(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, '.agpy')))
         self.log.info("agavepy cache file data: {}".format(d))
         # cli file
         d = {'tenantid': tenant_id,
@@ -234,16 +234,16 @@ class AgaveOAuthenticator(OAuthenticator):
              'expires_in': str(expires_in),
              'expires_at': str(expires_at)
              }
-        with open(os.path.join('/tokens', tenant_id, username, 'current'), 'w') as f:
+        with open(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, 'current'), 'w') as f:
             json.dump(d, f)
-        self.log.info("Saved CLI cache file to {}".format(os.path.join('/tokens', tenant_id, username, 'current')))
+        self.log.info("Saved CLI cache file to {}".format(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, 'current')))
         self.log.info("CLI cache file data: {}".format(d))
         # try to set the ownership of the cache files to the apim user and an appropriate group. We need to ignore
         # permission errors for portability.
         try:
             uid, gid = self.get_uid_gid()
-            os.chown(os.path.join('/tokens', tenant_id, username, '.agpy'), uid, gid)
-            os.chown(os.path.join('/tokens', tenant_id, username, 'current'), uid, gid)
+            os.chown(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, '.agpy'), uid, gid)
+            os.chown(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, 'current'), uid, gid)
         # if we get a permission error, ignore it because we may be in a different enviornment without an apim user and
         # thus trying to set ownership to root.
         except OSError as e:
@@ -251,8 +251,8 @@ class AgaveOAuthenticator(OAuthenticator):
         except PermissionError as e:
             self.log.info("PermissionError setting permissions on cache files: {}".format(e))
         try:
-            os.chmod(os.path.join('/tokens', tenant_id, username, 'current'), 0o777)
-            os.chmod(os.path.join('/tokens', tenant_id, username, '.agpy'), 0o777)
+            os.chmod(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, 'current'), 0o777)
+            os.chmod(os.path.join('/corral-repl/jupyter/tokens', tenant_id, username, '.agpy'), 0o777)
             self.log.info("Changed permissions on token cache files to 0777.")
         except OSError as e:
             self.log.info("OSError setting permissions on cache files: {}".format(e))

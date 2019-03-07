@@ -170,9 +170,14 @@ class AbacoSpawner(Spawner):
 
         message['params']['volume_mounts'] = []
         volume_mounts = self.configs.get('volume_mounts')
+
         if len(volume_mounts):
             for vol in volume_mounts:
                 message['params']['volume_mounts'].append(vol.format(**template_vars))
+
+        message['params']['volume_mounts'].append('{}:/etc/.agpy:ro'.format(os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, '.agpy')))
+        message['params']['volume_mounts'].append('{}:/home/jupyter/.agave/current:ro'.format(os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, 'current')))
+        message['params']['volume_mounts'].append('{}:/home/jupyter/notebook.log:ro'.format(os.path.join('/corral-repl/jupyter/logs', self.tenant, self.user.name, 'notebook.log')))
 
         projects = self.get_projects()
         if projects:
@@ -278,7 +283,7 @@ class AbacoSpawner(Spawner):
         :return:
         """
 
-        token_file = os.path.join('/tokens', self.tenant, self.user.name, '.agpy')
+        token_file = os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, '.agpy')
         self.log.info("spawner looking for token file: {} for user: {}".format(token_file, self.user.name))
         if not os.path.exists(token_file):
             self.log.warn("dockerspawner did not find a token file at {}".format(token_file))
