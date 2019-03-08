@@ -416,8 +416,8 @@ class AbacoSpawner(Spawner):
 
     def check_notebook_status(self, ag, status_needed):
         notebook = NotebookMetadata(self.user.name, ag)
-        if notebook.value['status'] != status_needed:
-            return self.check_notebook_status(ag, status_needed)
+        while notebook.value['status'] != status_needed:
+            notebook = NotebookMetadata(self.user.name, ag)
         return notebook
 
     def options_from_form(self, formdata):
