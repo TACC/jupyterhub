@@ -736,7 +736,7 @@ if len(image_options) > 1:
 #  respond. Callers of spawner.start will assume that startup has failed if it
 #  takes longer than this. start should return when the server process is started
 #  and its location is known.
-c.Spawner.start_timeout = 60
+# c.Spawner.start_timeout = 60
 
 #------------------------------------------------------------------------------
 # LocalProcessSpawner(Spawner) configuration
