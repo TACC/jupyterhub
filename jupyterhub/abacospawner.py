@@ -286,7 +286,7 @@ class AbacoSpawner(Spawner):
         token_file = os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, '.agpy')
         self.log.info("spawner looking for token file: {} for user: {}".format(token_file, self.user.name))
         if not os.path.exists(token_file):
-            self.log.warn("dockerspawner did not find a token file at {}".format(token_file))
+            self.log.warn("abacospawner did not find a token file at {}".format(token_file))
             self.access_token = None
             return None
         try:
@@ -297,11 +297,14 @@ class AbacoSpawner(Spawner):
         try:
             self.access_token = data[0]['token']
             self.log.info("Setting token: {}".format(self.access_token))
+            self.refresh_token = data[0]['refresh_token']
+            self.log.info("Setting refresh token: {}".format(self.refresh_token))
             self.url = data[0]['api_server']
             self.log.info("Setting url: {}".format(self.url))
             return None
         except (TypeError, KeyError):
             self.access_token = None
+            self.refresh_token = None
             self.url = None
             self.log.warn("token file did not have an access token and/or an api_server. data: {}".format(data))
         return None
@@ -391,8 +394,8 @@ class AbacoSpawner(Spawner):
         # first look for an "extended profile" record in agave metadata. such a record might have the
         # gid to use for this user.
         self.tas_gid = None
-        if self.access_token and self.url:
-            ag = Agave(api_server=self.url, token=self.access_token)
+        if self.access_token and self.url and self.refresh_token:
+            ag = Agave(api_server=self.url, token=self.access_token, refresh_token=self.refresh_token)
             meta_name = 'profile.{}.{}'.format(self.tenant, self.user.name)
             q = "{'name': '" + meta_name + "'}"
             self.log.info("using query: {}".format(q))
