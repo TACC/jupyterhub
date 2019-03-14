@@ -85,6 +85,9 @@ class AbacoSpawner(Spawner):
         base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
         return Agave(api_server=base_url, token=service_token)
 
+    def get_oauth_client(self, base_url, access_token, refresh_token):
+        return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
+
     def load_state(self, state):
         """Restore state of spawner from database.
 
@@ -318,11 +321,11 @@ class AbacoSpawner(Spawner):
         if not self.access_token or not self.url:
             self.log.info("no access_token or url")
             return None
-        headers = {'Authorization': 'Bearer {}'.format(self.access_token)}
         url = '{}/projects/v2/'.format(self.url)
 
         try:
-            rsp = requests.get(url, headers=headers)
+            ag = self.get_oauth_client(self.url, self.access_token, self.refresh_token)
+            rsp = ag.geturl(url)
         except Exception as e:
             self.log.warn("Got exception calling /projects: {}".format(e))
             return None
@@ -395,7 +398,7 @@ class AbacoSpawner(Spawner):
         # gid to use for this user.
         self.tas_gid = None
         if self.access_token and self.url and self.refresh_token:
-            ag = Agave(api_server=self.url, token=self.access_token, refresh_token=self.refresh_token)
+            ag = self.get_oauth_client(self.url, self.access_token, self.refresh_token)
             meta_name = 'profile.{}.{}'.format(self.tenant, self.user.name)
             q = "{'name': '" + meta_name + "'}"
             self.log.info("using query: {}".format(q))
