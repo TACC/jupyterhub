@@ -683,7 +683,9 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #c.Spawner.options_form = traitlets.Undefined
 image_options = configs.get('images')
 if len(image_options) > 1:
-    options = '<option value="HPC"> HPC </option>'
+    options=''
+    if configs.get('HPC_available') == 'True':
+        options = '<option value="HPC"> HPC </option>'
     for image in image_options:
         options = options + ' <option value="{}"> {} </option>'.format(image, image)
         print(options)
