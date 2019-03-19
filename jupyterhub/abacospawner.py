@@ -1,36 +1,9 @@
 from agavepy.agave import Agave
 from jupyterhub.spawner import Spawner, LocalProcessSpawner
 
-import asyncio
-import errno
 import json
 import os
-import pipes
 import requests
-import shutil
-import signal
-import sys
-import warnings
-import pwd
-from subprocess import Popen
-from tempfile import mkdtemp
-
-# FIXME: remove when we drop Python 3.5 support
-from async_generator import async_generator, yield_
-
-from sqlalchemy import inspect
-
-from tornado.ioloop import PeriodicCallback
-
-from traitlets.config import LoggingConfigurable
-from traitlets import (
-    Any, Bool, Dict, Instance, Integer, Float, List, Unicode, Union,
-    default, observe, validate,
-)
-
-# from .objects import Server
-# from .traitlets import Command, ByteSpecification, Callable
-# from .utils import iterate_until, maybe_future, random_port, url_path_join, exponential_backoff
 
 import logging
 
@@ -147,19 +120,13 @@ class AbacoSpawner(Spawner):
                 'params': {
                      "uid": self.configs.get('uid', getattr(self, 'tas_uid', None)),
                      "gid": self.configs.get('gid', getattr(self, 'tas_gid', None)),
-                     # "volume_mounts": self.configs.get('volume_mounts'),
-                     # "image": image,
-                     # "max_cpus": 1,
-                     # "mem_limit": 3,
                      "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
-                     # "action": "START"
                      "environment": self.get_env()
                     }
                 }
 
         message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
 
-        #todo check if form returns an image
         if len(self.configs.get('images')) == 1: #only 1 image option
             message['params']['image'] = self.configs.get('images')[0]
         else:
@@ -188,7 +155,6 @@ class AbacoSpawner(Spawner):
             message['params']['volume_mounts'] = message['params']['volume_mounts'] + projects
 
         notebook = NotebookMetadata(self.user.name, ag)
-        old_status = notebook.get_status()
         notebook.set_submitted()
 
         try:
@@ -198,7 +164,7 @@ class AbacoSpawner(Spawner):
             msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
             self.log.error(msg)
 
-        self.log.info("Called actor {}. Message: {}. Response: {}".format(self.actor_id, message, rsp))
+        self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
 
         notebook = self.check_notebook_status(ag, NotebookMetadata.ready_status)
         self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. port: {}".format(self.tenant, self.instance, self.user.name, notebook.value['status'], notebook.value['ip'], notebook.value['port']))
@@ -232,7 +198,6 @@ class AbacoSpawner(Spawner):
 
         notebook = NotebookMetadata(self.user.name, ag)
         notebook.set_stop_submitted()
-        old_status = notebook.get_status()
 
         try:
             self.log.info("Calling actor {} to stop {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
@@ -273,7 +238,6 @@ class AbacoSpawner(Spawner):
           process. `poll` should return None when `start` is yielded, indicating that the `start`
           process has not yet completed.
         """
-        # raise NotImplementedError("Override in subclass. Must be a Tornado gen.coroutine.")
         ag = self.get_service_client()
         notebook = NotebookMetadata(self.user.name, ag)
         if notebook.value['status'] == (NotebookMetadata.ready_status or NotebookMetadata.submitted_status):
@@ -462,9 +426,8 @@ class NotebookMetadata(object):
     def _get_meta(self, ag):
         """Retrieve the meta record from Agave using the agave client, `ag`."""
         try:
-            q={'name': self.get_metadata_name(self.username)}
+            q={'name': self.name}
             records = ag.meta.listMetadata(q=str(q))
-            # records = ag.meta.listMetadata(search={'name.eq': self.get_metadata_name(self.username)})
         except Exception as e:
             msg = "Python exception trying to get the meta record for user {}. Exception: {}".format(self.username, e)
             logger.error(msg)
@@ -481,7 +444,6 @@ class NotebookMetadata(object):
 
     def _create_meta(self, ag):
         """Create the meta record in Agave using the agave client, `ag`. """
-        name = self.get_metadata_name(self.username)
         d = self._get_meta_dict(status=self.pending_status)
         try:
             m = ag.meta.addMetadata(body=json.dumps(d))
