@@ -139,6 +139,7 @@ class AbacoSpawner(Spawner):
 
         message = {'service_token': os.environ.get('AGAVE_SERVICE_TOKEN'),
                 'agave_base_url': os.environ.get('AGAVE_BASE_URL'),
+                'actor_id': os.environ.get('ACTOR_ID'),
                 'tenant': self.tenant,
                 'instance': self.instance,
                 'username': self.user.name,

@@ -55,9 +55,9 @@ def get_config_metadata_name(message):
 
 def get_ssh_connection(context, message):
     """Create an SSH connection to the execution host."""
-    execution_ip = context.get('execution_ip', '129.114.19.77')
+    execution_ip = context.get('execution_ip')
     if message.get('execution_ip'):
-        execution_ip = message.get('execution_ip', '129.114.19.77')
+        execution_ip = message.get('execution_ip')
     execution_ssh_user = context.get('execution_ssh_user', 'root')
     if message.get('execution_ssh_user'):
         execution_ssh_user = message.get('execution_ssh_user')
@@ -121,30 +121,73 @@ def main():
     print('context', context)
     print('configs (from metadata)', configs)
 
-    os.environ['TENANT'] = message.get('tenant')
-    os.environ['INSTANCE'] = message.get('instance')
+    tenant = message.get('tenant')
+    instance = message.get('instance')
+    username = message.get('username')
+
+    os.environ['TENANT'] = tenant #these are needed to find the current NotebookMetadata opbject
+    os.environ['INSTANCE'] = instance
+
     notebook = NotebookMetadata(message.get('username'), ag)
 
     conn, ip = get_ssh_connection(context, message)
     if command == 'START':
-        print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
-        port = launch_notebook(message, conn, ip)
-        ip_to_return = context.get('execution_private_ip', ip)
-        if message.get('execution_private_ip'):
-            ip_to_return = message.get('execution_private_ip')
-        print('context.get: {} {} {}'.format(context.get('execution_ip'),context.get('execution_private_ip'),context.get('execution_ssh_key')))
-        print('context.get execution_private_ip: {} '.format(context.get('execution_private_ip')))
-        print('context.get: {} '.format(context.get('execution_private_ip', ip)))
-        print('ip_to_return: {} '.format(ip_to_return))
-        #todo see if url is used at all
-        notebook.set_ready(ip=ip_to_return, port=port, url='{}:{}'.format(ip_to_return, port))
-        print('****'*100, 'notebook value: {}'.format(notebook.value))
+        #####
+        if message['params']['image'] == 'HPC':
+            try:
+                actor_id = message.get('actor_id')
+                resp = ag.actors.addNonce(actorId=actor_id, body={'maxUses':1, 'level':'EXECUTE'})
+                nonce = resp['id']
+                url = '{}/actors/v2/{}/messages?x-nonce={}'.format(message.get("agave_base_url", "https://api.tacc.utexas.edu"), actor_id, nonce)
+                job_dict = {
+                    'name': message.get('params').get('name'),
+                    'parameters': {
+                        'nonce_url': url,
+                        'tenant': tenant,
+                        'instance': instance,
+                        'username': username,
+                        'uid': message.get('params').get('uid'),
+                        'gid': message.get('params').get('gid'),
+                        'token': message.get("service_token"),
+                        'api_server': message.get("agave_base_url", "https://api.tacc.utexas.edu")
+                    }
+                }
+                print('Job Submission Body: {}'.format(job_dict))
+                response = ag.jobs.submit(body=job_dict)
+                print('Job Submission Response: {}'.format(response))
+            except Exception as e:
+                err_resp = e.response.json()
+                err_resp['status_code'] = e.response.status_code
+                print('Error response'.format(err_resp))
+        #####
+        else:
+            print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
+            port = launch_notebook(message, conn, ip)
+            ip_to_return = context.get('execution_private_ip', ip)
+            if message.get('execution_private_ip'):
+                ip_to_return = message.get('execution_private_ip')
+            print('context.get: {} {} {}'.format(context.get('execution_ip'),context.get('execution_private_ip'),context.get('execution_ssh_key')))
+            print('context.get execution_private_ip: {} '.format(context.get('execution_private_ip')))
+            print('context.get: {} '.format(context.get('execution_private_ip', ip)))
+            print('ip_to_return: {} '.format(ip_to_return))
+            #todo see if url is used at all
+            notebook.set_ready(ip=ip_to_return, port=port, url='{}:{}'.format(ip_to_return, port))
+            print('****'*100, 'notebook value: {}'.format(notebook.value))
+
     elif command == 'STOP':
         params = message.get('params')
         container_name = params['name']
         print('stopping container: ', container_name)
         stop_notebook(container_name, conn)
         notebook.set_stopped()
+
+    elif command == 'UPDATE': #this should only come from an HPC agave app
+        ag = get_agave_client(message)
+        ip = message.get('ip')
+        port = message.get('port')
+        notebook = NotebookMetadata(message.get('username'), ag)
+        notebook.set_ready(ip=ip, port=port, url='{}:{}'.format(ip, port))
+        print('****' * 100, 'updated notebook value: {}'.format(notebook.value))
 
 
 
