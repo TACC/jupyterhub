@@ -449,7 +449,6 @@ class NotebookMetadata(object):
         """
         return '{}-{}-{}-JHub'.format(username, self.tenant, self.instance)
 
-    # def _get_meta_dict(self, status, url=""):
     def _get_meta_dict(self, **kwargs):
         """Returns the basic Python dictionary containing the metadata to be stored in Agave."""
         return {"name": self.name,
@@ -458,8 +457,7 @@ class NotebookMetadata(object):
                           "tenant": self.tenant,
                           "ip": kwargs.get('ip'),
                           "port": kwargs.get('port'),
-                          "status": kwargs.get('status'),
-                          "url": kwargs.get('url')}}
+                          "status": kwargs.get('status')}}
 
     def _get_meta(self, ag):
         """Retrieve the meta record from Agave using the agave client, `ag`."""
@@ -493,16 +491,6 @@ class NotebookMetadata(object):
             raise logger.error(msg)
         self.uuid = m['uuid']
         self.value = m['value']
-        # share the metadata with the service account
-        service_account = os.environ.get('AGAVE_SERVICE_ACCOUNT', "apitest")
-        try:
-            ag.meta.updateMetadataPermissions(uuid=self.uuid,
-                                              body={'permission':'READ_WRITE',
-                                                    'username': service_account})
-        except Exception as e:
-            msg = "Exception trying to share the meta record for user: {}. Exception:{}".format(self.username, e)
-            logger.error(msg)
-            raise AbacoSpawnerModelError(msg)
 
     def _update_meta(self, ag, d):
         """Update the metadata record value to the data in `d`, a dictionary."""
@@ -546,39 +534,36 @@ class NotebookMetadata(object):
             m = self._create_meta(ag)
 
     def set_submitted(self):
-        """Update the status on the user's metadata record for a submitted terminal session."""
-        d = self._get_meta_dict(status=self.submitted_status, url='')
+        """Update the status on the user's metadata record for a submitted notebook session."""
+        d = self._get_meta_dict(status=self.submitted_status)
         return self._update_meta(self.ag, d)
 
-    def set_ready(self, ip, port, url):
-        """Update the status and URL on the user's metadata record for a ready terminal session."""
-        d = self._get_meta_dict(ip=ip, port=port, status=self.ready_status, url=url)
+    def set_ready(self, ip, port):
+        """Update the status and URL on the user's metadata record for a ready notebook session."""
+        d = self._get_meta_dict(ip=ip, port=port, status=self.ready_status)
         return self._update_meta(self.ag, d)
 
-    def set_error(self, url=None):
-        """Update the status to error on the user's metadata record for a failed terminal session."""
-        # if they don't pass a URL, simply use what is already in the metadata.
-        if not url:
-            url = self.value['url']
-        d = self._get_meta_dict(status=self.error_status, url=url)
+    def set_error(self):
+        """Update the status to error on the user's metadata record for a failed notebook session."""
+        d = self._get_meta_dict(status=self.error_status)
         return self._update_meta(self.ag, d)
 
     def set_stopped(self):
-        """Update the status to stopped on the user's metadata record for a stopped terminal session."""
-        d = self._get_meta_dict(status=self.stopped_status, url='')
+        """Update the status to stopped on the user's metadata record for a stopped notebook session."""
+        d = self._get_meta_dict(status=self.stopped_status)
         return self._update_meta(self.ag, d)
 
     def set_stop_submitted(self):
-        """Update the status to stopped on the user's metadata record for a stopped terminal session."""
-        d = self._get_meta_dict(status=self.stop_submitted_status, url='')
+        """Update the status to stopped on the user's metadata record for a stopped notebook session."""
+        d = self._get_meta_dict(status=self.stop_submitted_status)
         return self._update_meta(self.ag, d)
 
     def set_pending(self):
-        """Update the status to pending on the user's metadata record for a stopped terminal session."""
-        d = self._get_meta_dict(status=self.stopped_status, url='')
+        """Update the status to pending on the user's metadata record for a stopped notebook session."""
+        d = self._get_meta_dict(status=self.stopped_status)
         return self._update_meta(self.ag, d)
 
     def get_status(self):
-        """Return the status of associated with this terminal,."""
+        """Return the status of associated with this notebook."""
         # refresh the object's representation from Agave:
         return self.value['status']

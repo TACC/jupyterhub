@@ -171,7 +171,7 @@ def main():
             print('context.get: {} '.format(context.get('execution_private_ip', ip)))
             print('ip_to_return: {} '.format(ip_to_return))
             #todo see if url is used at all
-            notebook.set_ready(ip=ip_to_return, port=port, url='{}:{}'.format(ip_to_return, port))
+            notebook.set_ready(ip=ip_to_return, port=port)
             print('****'*100, 'notebook value: {}'.format(notebook.value))
 
     elif command == 'STOP':
@@ -186,7 +186,7 @@ def main():
         ip = message.get('ip')
         port = message.get('port')
         notebook = NotebookMetadata(message.get('username'), ag)
-        notebook.set_ready(ip=ip, port=port, url='{}:{}'.format(ip, port))
+        notebook.set_ready(ip=ip, port=port)
         print('****' * 100, 'updated notebook value: {}'.format(notebook.value))
 
 
