@@ -14,11 +14,11 @@
 #
 # PASSED IN AT REGISTRATION (these can be overritten at run time):
 #    - execution_ssh_key (required): The KEY used to access the execution host(s).
+#    - agave_service_token (required): The KEY used to access the execution host(s).
+#    - agave_base_url (required): The KEY used to access the execution host(s).
 
 # PARAMETERS to ALL commands:
 #    - username (required): The username to act on.
-#    - service_token (required): token for service account.
-#    - agave_base_url (required): base url for service account
 #    - command (optional, defaults to START): the command to use.
 #    - tenant (required)
 #    - instance (required) e.g. local, dev, staging, prod
@@ -41,12 +41,6 @@ from agavepy.actors import get_context
 from agavepy.agave import Agave
 from abacospawner import NotebookMetadata
 
-
-def get_agave_client(message):
-    """Instantiate an Agave client using the access token and api server in the message."""
-    token = message.get("service_token")
-    api_server = message.get("agave_base_url", "https://api.tacc.utexas.edu")
-    return Agave(api_server=api_server, token=token)
 
 def get_config_metadata_name(message):
     return 'config.{}.{}.jhub'.format(
@@ -109,7 +103,16 @@ def stop_notebook(container_name, conn):
 def main():
     context = get_context()
     message = context['message_dict']
-    ag = get_agave_client(message)
+
+
+    token = context.get("agave_service_token")
+    if message.get('agave_service_token'):
+        token = message.get('agave_service_token')
+    api_server = context.get("agave_base_url", "https://api.tacc.utexas.edu")
+    if message.get('agave_base_url'):
+        api_server = message.get('agave_base_url')
+
+    ag = Agave(api_server=api_server, token=token)
 
     query={'name': get_config_metadata_name(message)}
     configs = ag.meta.listMetadata(q=str(query))[0]['value']
@@ -138,7 +141,7 @@ def main():
                 actor_id = message.get('actor_id')
                 resp = ag.actors.addNonce(actorId=actor_id, body={'maxUses':1, 'level':'EXECUTE'})
                 nonce = resp['id']
-                url = '{}/actors/v2/{}/messages?x-nonce={}'.format(message.get("agave_base_url", "https://api.tacc.utexas.edu"), actor_id, nonce)
+                url = '{}/actors/v2/{}/messages?x-nonce={}'.format(context.get("agave_base_url", "https://api.tacc.utexas.edu"), actor_id, nonce)
                 job_dict = {
                     'name': message.get('params').get('name'),
                     'parameters': {
@@ -148,8 +151,8 @@ def main():
                         'username': username,
                         'uid': message.get('params').get('uid'),
                         'gid': message.get('params').get('gid'),
-                        'token': message.get("service_token"),
-                        'api_server': message.get("agave_base_url", "https://api.tacc.utexas.edu")
+                        'token': token,
+                        'api_server': api_server
                     }
                 }
                 print('Job Submission Body: {}'.format(job_dict))
@@ -182,7 +185,7 @@ def main():
         notebook.set_stopped()
 
     elif command == 'UPDATE': #this should only come from an HPC agave app
-        ag = get_agave_client(message)
+        # ag = get_agave_client(message)
         ip = message.get('ip')
         port = message.get('port')
         notebook = NotebookMetadata(message.get('username'), ag)
