@@ -110,8 +110,7 @@ class AbacoSpawner(Spawner):
         q={'name': get_config_metadata_name()}
         self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
-        message = {'service_token': os.environ.get('AGAVE_SERVICE_TOKEN'),
-                'agave_base_url': os.environ.get('AGAVE_BASE_URL'),
+        message = {
                 'actor_id': os.environ.get('ACTOR_ID'),
                 'tenant': self.tenant,
                 'instance': self.instance,
