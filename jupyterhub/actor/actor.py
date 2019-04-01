@@ -70,10 +70,6 @@ def get_ssh_connection(context, message):
 
 def launch_notebook(message, conn, ip):
     """Launch an JupyterHub notebook container."""
-    username = message.get('username')
-    # command = 'cd /home/apim; ' \
-              # 'echo "{}" > {}.txt; ' \
-              # 'python start_notebook.py {}'.format(message.get('params'), username, message.get('params'))
     command = 'python /home/apim/start_notebook.py \'{}\''.format(json.dumps(message.get('params')))
     print("command: {}".format(command))
     ssh_stdin, ssh_stdout, ssh_stderr = conn.exec_command(command)
@@ -143,7 +139,7 @@ def main():
                 nonce = resp['id']
                 url = '{}/actors/v2/{}/messages?x-nonce={}'.format(context.get("agave_base_url", "https://api.tacc.utexas.edu"), actor_id, nonce)
                 job_dict = {
-                    'name': message.get('params').get('name'),
+                    'name': message.get('params').get('name'), #how to get agave app name? Naming convention?
                     'parameters': {
                         'nonce_url': url,
                         'tenant': tenant,
@@ -173,7 +169,6 @@ def main():
             print('context.get execution_private_ip: {} '.format(context.get('execution_private_ip')))
             print('context.get: {} '.format(context.get('execution_private_ip', ip)))
             print('ip_to_return: {} '.format(ip_to_return))
-            #todo see if url is used at all
             notebook.set_ready(ip=ip_to_return, port=port)
             print('****'*100, 'notebook value: {}'.format(notebook.value))
 

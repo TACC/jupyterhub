@@ -23,6 +23,7 @@ services:
       TAS_ROLE_PASS: ""
       HUB_IP: ""
       HUB_PORT: ""
+      NB_MEM_LIMIT: ""
 
   nginx:
     image: nginx

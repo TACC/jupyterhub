@@ -2,8 +2,8 @@
 # this is the script that the actor calls
 
 import json
-import sys
 import subprocess
+import sys
 import time
 
 data = json.loads(sys.argv[1])
@@ -19,19 +19,20 @@ env = data['environment']
 
 environment = ''
 if len(env):
-    for k,v in env.items:
+    for k,v in env.items():
         environment = environment + '-e {}={} '.format(k,v)
 
 params = {
     'uid':data['uid'],
     'gid':data['gid'],
     'name':data['name'],
+    'nb_mem_limit':data['nb_mem_limit'],
     'image':data['image'],
     'volume_mounts':volume_mounts,
     'environment': environment
 }
 
-command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} {environment} --publish 8888 {image}'.format(**params)
+command = 'docker service create --name {name} --user {uid}:{gid} --limit-memory {nb_mem_limit} {volume_mounts} {environment} --publish 8888 {image}'.format(**params)
 print('docker service create command: {}'.format(command))
 process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
 text = process.stdout.read()
@@ -41,12 +42,6 @@ time.sleep(2)
 inspect_command="port=\"$(docker service inspect {}|grep PublishedPort| awk ' {{ print substr($2, 1, length($2)-1) }} ')\"; echo $port".format(params['name'])
 print('inspect_command to get the port: {}'.format(inspect_command))
 process = subprocess.Popen(inspect_command, stdout=subprocess.PIPE, shell=True)
-
-# command = 'docker service create --name {name} --user {uid}:{gid} {volume_mounts} --publish 3000 {image}'.format(**params)
-# inspect_command="port=\"$(docker service inspect {}|grep PublishedPort| awk ' {{ print substr($2, 1, length($2)-1) }} ')\";".format(params['name'])
-# full_command = "{}; sleep 5; {}; echo $port".format(command, inspect_command)
-# print('subprocess command: {}'.format(full_command))
-# process = subprocess.Popen("{}; sleep 5; {}; echo $port".format(command, params['name'], inspect_command), stdout=subprocess.PIPE, shell=True)
 
 text = process.stdout.read()
 print(text)

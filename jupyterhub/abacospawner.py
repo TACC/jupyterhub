@@ -120,6 +120,7 @@ class AbacoSpawner(Spawner):
                      "uid": self.configs.get('uid', getattr(self, 'tas_uid', None)),
                      "gid": self.configs.get('gid', getattr(self, 'tas_gid', None)),
                      "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
+                     "nb_mem_limit": os.environ.get('NB_MEM_LIMIT'),
                      "environment": self.get_env()
                     }
                 }
