@@ -22,9 +22,11 @@
 #    - command (optional, defaults to START): the command to use.
 #    - tenant (required)
 #    - instance (required) e.g. local, dev, staging, prod
-#    - username (required)
 #    - execution_ip and execution_ssh_user (optional): Connection information for the
 #           execution host.
+# PARAMETERS for UPDATE command:
+#    - ip: IP where the notebook is running
+#    - port: port where notebook is running
 #
 # Building the image (build from project root):
 #    docker build -t taccsciapps/XXXX -f jupyterhub/actor/Dockerfile .
@@ -147,8 +149,6 @@ def main():
                         'username': username,
                         'uid': message.get('params').get('uid'),
                         'gid': message.get('params').get('gid'),
-                        'token': token,
-                        'api_server': api_server
                     }
                 }
                 print('Job Submission Body: {}'.format(job_dict))
@@ -173,17 +173,18 @@ def main():
             print('****'*100, 'notebook value: {}'.format(notebook.value))
 
     elif command == 'STOP':
-        params = message.get('params')
-        container_name = params['name']
-        print('stopping container: ', container_name)
-        stop_notebook(container_name, conn)
-        notebook.set_stopped()
+        if message['params']['image'] == 'HPC':
+            notebook.set_stopped()
+        else:
+            params = message.get('params')
+            container_name = params['name']
+            print('stopping container: ', container_name)
+            stop_notebook(container_name, conn)
+            notebook.set_stopped()
 
     elif command == 'UPDATE': #this should only come from an HPC agave app
-        # ag = get_agave_client(message)
         ip = message.get('ip')
         port = message.get('port')
-        notebook = NotebookMetadata(message.get('username'), ag)
         notebook.set_ready(ip=ip, port=port)
         print('****' * 100, 'updated notebook value: {}'.format(notebook.value))
 
