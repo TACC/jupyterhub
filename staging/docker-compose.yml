@@ -1,0 +1,82 @@
+version: "2"
+
+services:
+
+  hubDesignsafe:
+    image: taccsciapps/jupyterhub:staging
+    command: >
+      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+    ports:
+      - 8000:8000
+    environment:
+      AGAVE_CLIENT_ID: ""
+      AGAVE_CLIENT_SECRET: ""
+      AGAVE_SERVICE_TOKEN: ""
+      AGAVE_BASE_URL: ""
+      ACTOR_ID: ""
+      TENANT: ""
+      INSTANCE: ""
+      TAS_URL_BASE: ""
+      TAS_ROLE_ACCT: ""
+      TAS_ROLE_PASS: ""
+      HUB_IP: ""
+      HUB_PORT: ""
+      NB_MEM_LIMIT: ""
+
+  hubSD2E:
+    image: taccsciapps/jupyterhub:staging
+    command: >
+      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+    ports:
+      - 8001:8000
+    environment:
+      AGAVE_CLIENT_ID: ""
+      AGAVE_CLIENT_SECRET: ""
+      AGAVE_SERVICE_TOKEN: ""
+      AGAVE_BASE_URL: ""
+      ACTOR_ID: ""
+      TENANT: ""
+      INSTANCE: ""
+      TAS_URL_BASE: ""
+      TAS_ROLE_ACCT: ""
+      TAS_ROLE_PASS: ""
+      HUB_IP: ""
+      HUB_PORT: ""
+      NB_MEM_LIMIT: ""
+
+  hubTACC:
+    image: taccsciapps/jupyterhub:staging
+    command: >
+      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+    ports:
+      - 8002:8000
+    environment:
+      AGAVE_CLIENT_ID: ""
+      AGAVE_CLIENT_SECRET: ""
+      AGAVE_SERVICE_TOKEN: ""
+      AGAVE_BASE_URL: ""
+      ACTOR_ID: ""
+      TENANT: ""
+      INSTANCE: ""
+      TAS_URL_BASE: ""
+      TAS_ROLE_ACCT: ""
+      TAS_ROLE_PASS: ""
+      HUB_IP: ""
+      HUB_PORT: ""
+      NB_MEM_LIMIT: ""
+
+
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl/cert.cer:/etc/ssl/jupyterhub/jupyterhub_staging_bundle.cer
+      - ./nginx/ssl/key.pem:/etc/ssl/jupyterhub/jupyterhub_staging_bundle.pem
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes_from:
+      - hub
+
+    links:
+      - hub:hub
