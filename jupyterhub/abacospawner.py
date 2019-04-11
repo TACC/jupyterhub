@@ -1,11 +1,13 @@
-from agavepy.agave import Agave
-from jupyterhub.spawner import Spawner, LocalProcessSpawner
-
 import json
 import os
 import requests
 
 import logging
+
+from agavepy.agave import Agave
+from jupyterhub.spawner import Spawner, LocalProcessSpawner
+
+from agave import get_user_token_dir, INSTANCE, TENANT
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +103,8 @@ class AbacoSpawner(Spawner):
 
         """
         self.actor_id = os.environ.get('ACTOR_ID')
-        self.tenant = os.environ.get('TENANT')
-        self.instance = os.environ.get('INSTANCE')
+        self.tenant = TENANT
+        self.instance = INSTANCE
         self.set_agave_access_data()
         self.get_tas_data()
 
@@ -125,7 +127,8 @@ class AbacoSpawner(Spawner):
                     }
                 }
 
-        message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
+        message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(
+            os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
 
         if len(self.configs.get('images')) == 1: #only 1 image option
             message['params']['image'] = self.configs.get('images')[0]
@@ -146,9 +149,10 @@ class AbacoSpawner(Spawner):
             for vol in volume_mounts:
                 message['params']['volume_mounts'].append(vol.format(**template_vars))
 
-        message['params']['volume_mounts'].append('{}:/etc/.agpy:ro'.format(os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, '.agpy')))
-        message['params']['volume_mounts'].append('{}:/home/jupyter/.agave/current:ro'.format(os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, 'current')))
-        message['params']['volume_mounts'].append('{}:/home/jupyter/notebook.log:ro'.format(os.path.join('/corral-repl/jupyter/logs', self.tenant, self.user.name, 'notebook.log')))
+        message['params']['volume_mounts'].append('{}:/etc/.agpy:ro'.format(
+            os.path.join(get_user_token_dir(self.user.name), '.agpy')))
+        message['params']['volume_mounts'].append('{}:/home/jupyter/.agave/current:ro'.format(
+            os.path.join(get_user_token_dir(self.user.name), 'current')))
 
         projects = self.get_projects()
         if projects:
@@ -250,7 +254,7 @@ class AbacoSpawner(Spawner):
         :return:
         """
 
-        token_file = os.path.join('/corral-repl/jupyter/tokens', self.tenant, self.user.name, '.agpy')
+        token_file = os.path.join(get_user_token_dir(self.user.name), '.agpy')
         self.log.info("spawner looking for token file: {} for user: {}".format(token_file, self.user.name))
         if not os.path.exists(token_file):
             self.log.warn("abacospawner did not find a token file at {}".format(token_file))
