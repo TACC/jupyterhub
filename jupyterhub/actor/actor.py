@@ -151,8 +151,12 @@ def main():
                         'gid': message.get('params').get('gid'),
                     }
                 }
+                # submit the HPC job as the actual user -
+                ag_user = Agave(api_server=configs["agave_base_url"],
+                                token=message.get('params').get("access_token"),
+                                refresh_token=message.get('params').get("refresh_token"))
                 print('Job Submission Body: {}'.format(job_dict))
-                response = ag.jobs.submit(body=job_dict)
+                response = ag_user.jobs.submit(body=job_dict)
                 print('Job Submission Response: {}'.format(response))
             except Exception as e:
                 err_resp = e.response.json()
