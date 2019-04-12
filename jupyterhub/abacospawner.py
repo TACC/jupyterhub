@@ -7,7 +7,6 @@ import logging
 from agavepy.agave import Agave
 from jupyterhub.spawner import Spawner, LocalProcessSpawner
 
-from agave import get_user_token_dir, INSTANCE, TENANT
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +15,14 @@ logger = logging.getLogger(__name__)
 TAS_URL_BASE = os.environ.get('TAS_URL_BASE', 'https://tas.tacc.utexas.edu/api/v1')
 TAS_ROLE_ACCT = os.environ.get('TAS_ROLE_ACCT', 'tas-jetstream')
 TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
+
+NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')
+TOKENS_DIR = '{}/jupyter/tokens'.format(NETWORK_STORAGE_ROOT_DIR)
+INSTANCE = os.environ.get('INSTANCE')
+TENANT = os.environ.get('TENANT')
+
+def get_user_token_dir(username):
+    return os.path.join(TOKENS_DIR, INSTANCE, TENANT, username)
 
 class AbacoSpawnerError(Exception):
     def __init__(self, msg):
