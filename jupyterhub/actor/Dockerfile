@@ -1,6 +1,6 @@
-# Image: 
+# Image: taccsciapps/hub-actor
 # build from project root
-# docker build -f jupyterhub/actor/Dockerfile -t mlm55/jupyterhub_actor .
+# docker build -f jupyterhub/actor/Dockerfile -t taccsciapps/hub-actor .
 
 FROM python:3.6
 
