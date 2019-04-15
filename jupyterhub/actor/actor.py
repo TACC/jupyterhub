@@ -81,12 +81,13 @@ def launch_notebook(message, conn, ip):
     st_err = ssh_stderr.read()
     print("st err from command: {}".format(st_err))
     try:
-        port = st_out.splitlines()[-2].decode('ascii')
-    except IndexError:
-        print("There was an IndexError parsing the standard out of the notebook launch for the port. "
-              "Standard out was: {}".format(st_out))
+        port = st_out.decode('utf-8').strip()
+        port = ''.join(ch for ch in port if ch.isdigit())
+    except Exception as e:
+        print("Got exception parsing the standard out of the notebook launch for the port. "
+              "Standard out was: {}; Exception was: {}".format(st_out, e))
         return ""
-    print("got a port: {}".format(port))
+    print("***** got a port: {} type(port) = {} ******".format(port, type(port)))
     return port
 
 def stop_notebook(container_name, conn):
@@ -161,11 +162,30 @@ def main():
             except Exception as e:
                 err_resp = e.response.json()
                 err_resp['status_code'] = e.response.status_code
+                notebook.error_status = err_resp
+                notebook.set_error()
                 print('Error response'.format(err_resp))
         #####
         else:
             print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
             port = launch_notebook(message, conn, ip)
+            if not port:
+                notebook.error_status = "Unable to launch user notebook server: unable to parse port."
+                print("Actor exiting with an error: {}".format(notebook.error_status))
+                notebook.set_error()
+                print("set notebook metadata to ERROR status!")
+                return "Error"
+            print("back in MAIN - got a port: {} type: {}".format(port, type(port)))
+            try:
+                port = int(port)
+            except Exception as e:
+                notebook.error_status = "Unable to launch user notebook server; " \
+                                        "invalid port ({}); exception: {}".format(port, e)
+                print("Actor exiting with an error: {}".format(notebook.error_status))
+                notebook.set_error()
+                print("set notebook metadata to ERROR status!")
+                return "Error"
+            print("converted port to an int. Port: {}".format(port))
             ip_to_return = context.get('execution_private_ip', ip)
             if message.get('execution_private_ip'):
                 ip_to_return = message.get('execution_private_ip')
@@ -177,7 +197,12 @@ def main():
             print('****'*100, 'notebook value: {}'.format(notebook.value))
 
     elif command == 'STOP':
-        if message['params']['image'] == 'HPC':
+        try:
+            nb_type = message['params']['image']
+        except:
+            nb_type = 'CLOUD'
+        print("nb_type: {}".format(nb_type))
+        if nb_type == 'HPC':
             notebook.set_stopped()
         else:
             params = message.get('params')

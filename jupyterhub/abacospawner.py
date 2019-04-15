@@ -178,7 +178,9 @@ class AbacoSpawner(Spawner):
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
 
         notebook = self.check_notebook_status(ag, NotebookMetadata.ready_status)
-        self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. port: {}".format(self.tenant, self.instance, self.user.name, notebook.value['status'], notebook.value['ip'], notebook.value['port']))
+        self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. "
+                      "port: {}".format(self.tenant, self.instance, self.user.name,
+                                        notebook.value['status'], notebook.value['ip'], notebook.value['port']))
         return str(notebook.value['ip']), int(notebook.value['port'])
 
     async def stop(self, now=False):
