@@ -3,8 +3,8 @@
 # "command" string:
 #    1. START - Start a new Jupyterhub notebooks for a user.
 #    2. STOP  - Stop and remove the Jupyterhub notebook container associated with a user.
-#    3. SYNC  - Sync the metadata record with the existing state of the terminal container
-#               associated with a user. The Jupyterhub existence of an Jupyterhub container or its state
+#    3. SYNC  - Sync the metadata record with the existing state of the notebook container
+#               associated with a user. The existence of a Jupyterhub container or its state
 #               will not be affected by this command; only the metadata record will be
 #               modified.
 #
@@ -142,12 +142,15 @@ def main():
                 nonce = resp['id']
                 url = '{}/actors/v2/{}/messages?x-nonce={}'.format(context.get("agave_base_url", "https://api.tacc.utexas.edu"), actor_id, nonce)
                 job_dict = {
-                    'name': message.get('params').get('name'), #how to get agave app name? Naming convention?
+                    'name': message.get('params').get('name'),
+                    'appId': '',
+                    'archive': False,
                     'parameters': {
                         'nonce_url': url,
                         'tenant': tenant,
                         'instance': instance,
                         'username': username,
+                        'environment': message.get('params').get('environment')
                         'uid': message.get('params').get('uid'),
                         'gid': message.get('params').get('gid'),
                     }
