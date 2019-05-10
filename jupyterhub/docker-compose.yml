@@ -14,7 +14,28 @@ services:
       AGAVE_CLIENT_ID: ""
       AGAVE_CLIENT_SECRET: ""
       AGAVE_SERVICE_TOKEN: ""
-      AGAVE_BASE_URL: "https://api.tacc.utexas.edu"
+      AGAVE_BASE_URL: ""
       ACTOR_ID: ""
       TENANT: ""
-      INSTANCE: "local"
+      INSTANCE: ""
+      TAS_URL_BASE: ""
+      TAS_ROLE_ACCT: ""
+      TAS_ROLE_PASS: ""
+      HUB_IP: ""
+      HUB_PORT: ""
+      NB_MEM_LIMIT: ""
+
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl/cert.cer:/etc/ssl/jupyterhub/jupyterhub_staging_bundle.cer
+      - ./nginx/ssl/key.pem:/etc/ssl/jupyterhub/jupyterhub_staging_bundle.pem
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes_from:
+      - hub
+
+    links:
+      - hub:hub

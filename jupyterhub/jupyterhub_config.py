@@ -5,8 +5,8 @@ from agavepy.agave import Agave
 
 def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(
-        os.environ.get('TENANT', 'designsafe-ci'),
-        os.environ.get('INSTANCE', 'local'))
+        os.environ.get('TENANT'),
+        os.environ.get('INSTANCE'))
 
 service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
 base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
@@ -288,7 +288,9 @@ c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
 #
 #  See `hub_connect_ip` for cases where the bind and connect address should
 #  differ, or `hub_bind_url` for setting the full bind URL.
-#c.JupyterHub.hub_ip = '127.0.0.1'
+# c.JupyterHub.hub_ip = '127.0.0.1'
+# c.JupyterHub.hub_ip = os.environ.get('HUB_IP')
+c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 
 ## The internal port for the Hub process.
 #
@@ -661,14 +663,14 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #
 #  .. code:: html
 #
-#      Set your key:
-#      <input name="key" val="default_key"></input>
-#      <br>
-#      Choose a letter:
-#      <select name="letter" multiple="true">
-#        <option value="A">The letter A</option>
-#        <option value="B">The letter B</option>
-#      </select>
+     # Set your key:
+     # <input name="key" val="default_key"></input>
+     # <br>
+     # Choose a letter:
+     # <select name="letter" multiple="true">
+     #   <option value="A">The letter A</option>
+     #   <option value="B">The letter B</option>
+     # </select>
 #
 #  The data from this form submission will be passed on to your spawner in
 #  `self.user_options`
@@ -679,6 +681,15 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  that the interface of the spawner class is not deemed stable across versions,
 #  so using this functionality might cause your JupyterHub upgrades to break.
 #c.Spawner.options_form = traitlets.Undefined
+image_options = configs.get('images')
+if len(image_options) > 1 or configs.get('HPC_available') == 'True':
+    options=''
+    if configs.get('HPC_available') == 'True':
+        options = '<option value="HPC"> HPC </option>'
+    for image in image_options:
+        options = options + ' <option value="Cloud: {}"> {} </option>'.format(image, image)
+        print(options)
+    c.AbacoSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
 
 ## Interval (in seconds) on which to poll the spawner for single-user server's
 #  status.
@@ -727,7 +738,7 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  respond. Callers of spawner.start will assume that startup has failed if it
 #  takes longer than this. start should return when the server process is started
 #  and its location is known.
-#c.Spawner.start_timeout = 60
+# c.Spawner.start_timeout = 60
 
 #------------------------------------------------------------------------------
 # LocalProcessSpawner(Spawner) configuration
