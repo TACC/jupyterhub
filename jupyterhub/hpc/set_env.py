@@ -4,7 +4,9 @@
 # note that since a child process can never update the environment of a parent, this
 # script should should be called from within a bash script as follows:
 #
-# eval `./set_env.py`
+# eval `python3 set_env.py ${environment}`
+#
+# Example test execution: eval `python3 set_env.py '{"key1": "value1", "key2": "value2"}'`
 
 
 import json
