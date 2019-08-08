@@ -17,3 +17,10 @@ client.containers.run(
              }
 )
 
+docker service create --name jhub --user 458981:816877 --replicas 1 --mount source=/corral-repl/tacc/NHERI/shared/mlm55,target=/home/jupyter/MyData,type=bind --mount source=/corral-repl/tacc/NHERI/published,target=/home/jupyter/NHERI-Published,type=bind --mount source=/corral-repl/tacc/NHERI/public/projects,target=/home/jupyter/Published,type=bind --mount source=/corral-repl/tacc/NHERI/community,target=/home/jupyter/CommunityData,type=bind --publish 3000 taccsciapps/jupyteruser-ds:1.2.6
+
+"/corral-repl/tacc/NHERI/shared/mlm55:/home/jupyter/MyData:rw",
+  "/corral-repl/tacc/NHERI/published:/home/jupyter/NHERI-Published:ro",
+  "/corral-repl/tacc/NHERI/shared/dan/Meta_Published:/home/jupyter/Published:ro",
+  "/corral-repl/tacc/NHERI/public/projects:/home/jupyter/NEES:ro",
+  "/corral-repl/tacc/NHERI/community:/home/jupyter/CommunityData:ro"
