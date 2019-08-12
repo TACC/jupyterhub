@@ -8,7 +8,7 @@
     "jupyter"
   ],
   "deploymentSystem": "jupyterh.tacc.corral.storage",
-  "deploymentPath": "/home/jupyterh/applications/classifyApp-1.0/",
+  "deploymentPath": "/home/jupyterh/",
   "templatePath": "wrapper.sh",
   "testPath": "test/test.sh",
   "executionSystem": "jupyterh.stampede2.execution",
