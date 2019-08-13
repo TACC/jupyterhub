@@ -6,14 +6,14 @@
   "description": "Execution system for Stampede2 ",
   "site": "www.tacc.utexas.edu",
   "executionType": "HPC",
-  "scratchDir": "/home1/0003/jupyterh/scratch",
-  "workDir": "/home1/0003/jupyterh/work",
+  "scratchDir": "/home1/06102/jupyterh/scratch",
+  "workDir": "/home1/06102/jupyterh/work",
   "login": {
     "host": "login1.stampede2.tacc.utexas.edu",
     "port": 22,
     "protocol": "SSH",
-    "scratchDir": "/home1/0003/jupyterh/scratch",
-    "workDir": "/home1/0003/jupyterh/work",
+    "scratchDir": "/home1/06102/jupyterh/scratch",
+    "workDir": "/home1/06102/jupyterh/work",
     "auth": {
       "username": "jupyterh",
       "password": "password-in-stache",
@@ -25,7 +25,7 @@
     "port": 22,
     "protocol": "SFTP",
     "rootDir": "/",
-    "homeDir": "/home1/0003/jupyterh",
+    "homeDir": "/home1/06102/jupyterh",
     "auth": {
      "username": "jupyterh",
       "password": "password-in-stache",

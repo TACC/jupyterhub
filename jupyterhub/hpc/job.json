@@ -1,0 +1,8 @@
+{
+	"name": "jupyterh.app.jobrun",
+	"appId": "jupyterh.app.jupyterhub-1.0",
+	"archive": true,
+    "archivePath": "/home/jupyterh",
+	"archiveSystem": "jupyterh.tacc.corral.storage",
+	"memoryPerNode": "1"
+}
