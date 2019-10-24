@@ -16,7 +16,7 @@ TAS_URL_BASE = os.environ.get('TAS_URL_BASE', 'https://tas.tacc.utexas.edu/api/v
 TAS_ROLE_ACCT = os.environ.get('TAS_ROLE_ACCT', 'tas-jetstream')
 TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
-NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')
+NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')  #TODO should this in the config metadata
 TOKENS_DIR = '{}/jupyter/tokens'.format(NETWORK_STORAGE_ROOT_DIR)
 INSTANCE = os.environ.get('INSTANCE')
 TENANT = os.environ.get('TENANT')
@@ -156,10 +156,10 @@ class AbacoSpawner(Spawner):
             for vol in volume_mounts:
                 message['params']['volume_mounts'].append(vol.format(**template_vars))
 
-        message['params']['volume_mounts'].append('{}:/etc/.agpy:ro'.format(
-            os.path.join(get_user_token_dir(self.user.name), '.agpy')))
-        message['params']['volume_mounts'].append('{}:/home/jupyter/.agave/current:ro'.format(
-            os.path.join(get_user_token_dir(self.user.name), 'current')))
+        message['params']['volume_mounts'].append('{}:{}:/etc/.agpy:ro'.format(
+            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), '.agpy')))
+        message['params']['volume_mounts'].append('{}:{}:/home/jupyter/.agave/current:ro'.format(
+            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), 'current')))
 
         projects = self.get_projects()
         if projects:
