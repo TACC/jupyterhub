@@ -687,7 +687,7 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
     if configs.get('HPC_available') == 'True':
         options = '<option value="HPC"> HPC </option>'
     for image in image_options:
-        options = options + ' <option value="Cloud: {}"> {} </option>'.format(image, image)
+        options = options + ' <option value="{}"> {} </option>'.format(image, image)
         print(options)
     c.AbacoSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
 
