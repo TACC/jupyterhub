@@ -134,7 +134,7 @@ class AbacoSpawner(Spawner):
                     }
                 }
 
-        message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(
+        message['params']['environment']['JUPYTERHUB_API_URL'] = 'https://{}:{}/hub/api'.format(
             os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
 
         if len(self.configs.get('images')) == 1: #only 1 image option
