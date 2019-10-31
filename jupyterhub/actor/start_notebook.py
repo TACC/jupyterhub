@@ -4,44 +4,96 @@
 import json
 import subprocess
 import sys
-import time
+import re
 
 data = json.loads(sys.argv[1])
-volumes = data['volume_mounts']
 
 volume_mounts = ''
-if len(volumes):
-    for item in volumes:
+volumes=''
+if len(data['volume_mounts']):
+    for item in data['volume_mounts']:
         m=item.split(":")
-        volume_mounts = volume_mounts + '--mount source={},target={},type=bind '.format(m[0],m[1])
+        #volume names must consist of lower case alphanumeric characters or '-',
+        #and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc',
+        # regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')
+        vol_name = re.sub(r'([^a-z0-9-\s]+?)', '', m[2].split('/')[-1].lower())
+        read_only = 'true' if m[3] == 'ro' else 'false'
+        volumes = volumes + '''      - name: {}
+        nfs:
+          server: {}
+          path: {}
+          readOnly: {}\n'''.format(vol_name, m[0], m[1], read_only)
+        volume_mounts = volume_mounts + '''        - name: {}
+          mountPath: "{}"\n'''.format(vol_name, m[2])
 
 env = data['environment']
 
 environment = ''
 if len(env):
     for k,v in env.items():
-        environment = environment + '-e {}={} '.format(k,v)
+        environment = environment + '        - name: {}\n          value: {}\n'.format(k,v)
 
 params = {
     'uid':data['uid'],
     'gid':data['gid'],
     'name':data['name'],
-    'nb_mem_limit':data['nb_mem_limit'],
+    # 'nb_mem_limit':data['nb_mem_limit'],
     'image':data['image'],
     'volume_mounts':volume_mounts,
+    'volumes': volumes,
     'environment': environment
 }
 
-command = 'docker service create --name {name} --user {uid}:{gid} --limit-memory {nb_mem_limit} {volume_mounts} {environment} --publish 8888 {image}'.format(**params)
-# print('docker service create command: {}'.format(command))
-process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
-text = process.stdout.read()
-# print(text)
+pod = '''
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter
+spec:
+  selector:
+    matchLabels:
+      app: jupyter
+  template:
+    metadata:
+      labels:
+        app: jupyter
+    spec:
+      securityContext:
+        runAsUser: {uid}
+        runAsGroup: {gid}
+      containers:
+      - name: jupyter
+        image: {image}
+        env:
+{environment}
+        ports:
+        - name: http
+          containerPort: 8888
+        volumeMounts:
+{volume_mounts}
+      volumes:
+{volumes}
+'''
 
-time.sleep(2)
-inspect_command="port=\"$(docker service inspect {}|grep PublishedPort| awk ' {{ print substr($2, 1, length($2)-1) }} ')\"; echo $port".format(params['name'])
-# print('inspect_command to get the port: {}'.format(inspect_command))
-process = subprocess.Popen(inspect_command, stdout=subprocess.PIPE, shell=True)
+pod=pod.format(**params)
 
-text = process.stdout.read()
-print(text)
+process = subprocess.run(['kubectl', 'apply', '-f', '-'], input=pod, stdout=subprocess.PIPE, encoding='utf-8')
+
+status = ''
+while status != 'Running':
+    process = subprocess.run(['kubectl', 'get', 'pods'], stdout=subprocess.PIPE, encoding='utf-8')
+    output = process.stdout.split()
+    pod_name = output[5]
+    status = output[7]
+
+process = subprocess.run(['kubectl', 'apply', '-f', 'service.yml'], stdout=subprocess.PIPE, encoding='utf-8')
+
+process = subprocess.run(['kubectl', 'get', 'service'], stdout=subprocess.PIPE, encoding='utf-8')
+#process.stdout.split() gives ['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE', 'jupyter', 'NodePort', '10.97.5.88', '<none>', '8888:30117/TCP', '5s']
+port = process.stdout.split()[10].split(':')[1].split('/')[0]
+
+process = subprocess.run(['kubectl', 'logs', pod_name], stdout=subprocess.PIPE, encoding='utf-8')
+#token = process.stdout.split('token=')[-1]
+token='fortestingtokennotreallyneeded'
+print(port)
+print(token)

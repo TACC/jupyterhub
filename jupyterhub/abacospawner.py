@@ -398,9 +398,11 @@ class AbacoSpawner(Spawner):
                                                                                         self.tas_homedir))
 
     def check_notebook_status(self, ag, status_needed):
+        i=0
         notebook = NotebookMetadata(self.user.name, ag)
-        while notebook.value['status'] != status_needed:
+        while notebook.value['status'] != status_needed and i < 100 :
             notebook = NotebookMetadata(self.user.name, ag)
+            i = i + 1
         return notebook
 
     def options_from_form(self, formdata):
