@@ -102,7 +102,7 @@ def launch_notebook(message, conn, ip):
 
 def stop_notebook(container_name, conn):
     """Stop and remove a jupyterHub notebook container."""
-    command = 'docker service rm {}'.format(container_name)
+    command = 'kubectl delete all -l app={}'.format(container_name)
     _, ssh_stdout, ssh_stderr = conn.exec_command(command)
     st_out = ssh_stdout.read()
     print("st out from command: {}".format(st_out))

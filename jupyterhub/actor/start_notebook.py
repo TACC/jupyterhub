@@ -49,6 +49,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {name}
+  labels:
+    app: {name}
 spec:
   selector:
     matchLabels:
