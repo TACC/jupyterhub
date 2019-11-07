@@ -159,7 +159,7 @@ def main():
                         'tenant': tenant,
                         'instance': instance,
                         'username': username,
-                        'environment': message.get('params').get('environment'),
+                        'environment': json.dumps(message.get('params').get('environment')),
                         # 'uid': message.get('params').get('uid'),
                         # 'gid': message.get('params').get('gid'),
                     }
