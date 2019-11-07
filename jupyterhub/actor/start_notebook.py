@@ -112,8 +112,4 @@ process = subprocess.run(['kubectl', 'get', 'service', '-l', 'app={}'.format(par
 #process.stdout.split() gives ['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE', 'jupyter', 'NodePort', '10.97.5.88', '<none>', '8888:30117/TCP', '5s']
 port = process.stdout.split()[10].split(':')[1].split('/')[0]
 
-process = subprocess.run(['kubectl', 'logs', pod_name], stdout=subprocess.PIPE, encoding='utf-8')
-#token = process.stdout.split('token=')[-1]
-token='fortestingtokennotreallyneeded'
 print(port)
-print(token)

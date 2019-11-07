@@ -90,15 +90,13 @@ def launch_notebook(message, conn, ip):
         output = output.split()
         print("output.split: {}".format(output))
         port = output[0]
-        token = output[1]
         port = ''.join(ch for ch in port if ch.isdigit())
     except Exception as e:
         print("Got exception parsing the standard out of the notebook launch for the port. "
               "Standard out was: {}; Exception was: {}".format(st_out, e))
         return ""
     print("***** got a port: {} type(port) = {} ******".format(port, type(port)))
-    print("***** got a token: {} type(token) = {} ******".format(token, type(token)))
-    return port,token
+    return port
 
 def stop_notebook(container_name, conn):
     """Stop and remove a jupyterHub notebook container."""
@@ -182,7 +180,7 @@ def main():
         #####
         else:
             print('****'*100, 'notebook value before calling launch_notebook for user {}: {}'.format(message.get('username'), notebook.value))
-            port,token = launch_notebook(message, conn, ip)
+            port = launch_notebook(message, conn, ip)
             if not port:
                 notebook.error_status = "Unable to launch user notebook server: unable to parse port."
                 print("Actor exiting with an error: {}".format(notebook.error_status))
@@ -190,7 +188,6 @@ def main():
                 print("set notebook metadata to ERROR status!")
                 return "Error"
             print("back in MAIN - got a port: {} type: {}".format(port, type(port)))
-            print("back in MAIN - got a token: {} type: {}".format(token, type(token)))
             try:
                 port = int(port)
             except Exception as e:
