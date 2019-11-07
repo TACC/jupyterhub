@@ -134,7 +134,7 @@ class AbacoSpawner(Spawner):
                     }
                 }
 
-        message['params']['environment']['JUPYTERHUB_API_URL'] = 'https://{}:{}/hub/api'.format(
+        message['params']['environment']['JUPYTERHUB_API_URL'] = 'http://{}:{}/hub/api'.format(
             os.environ.get('HUB_IP'), os.environ.get('HUB_PORT'))
 
         if len(self.configs.get('images')) == 1: #only 1 image option
@@ -155,11 +155,11 @@ class AbacoSpawner(Spawner):
         if len(volume_mounts):
             for vol in volume_mounts:
                 message['params']['volume_mounts'].append(vol.format(**template_vars))
-
-        message['params']['volume_mounts'].append('{}:{}:/etc/.agpy:ro'.format(
-            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), '.agpy')))
-        message['params']['volume_mounts'].append('{}:{}:/home/jupyter/.agave/current:ro'.format(
-            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), 'current')))
+#TODO figure out where these should live
+#        message['params']['volume_mounts'].append('{}:{}:/etc/.agpy:ro'.format(
+#            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), '.agpy')))
+#        message['params']['volume_mounts'].append('{}:{}:/home/jupyter/.agave/current:ro'.format(
+#            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), 'current')))
 
         projects = self.get_projects()
         if projects:
@@ -332,8 +332,10 @@ class AbacoSpawner(Spawner):
                 self.log.warn("Did not get a projectId for a project: {}".format(p))
                 continue
 
-            user_projects.append('{}/{}:{}/{}:rw'.format(self.host_projects_root_dir,
-                                                  uuid, self.container_projects_root_dir, project_id))
+            user_projects.append('{}:{}/{}:{}/{}:rw'.format(self.configs.get('network_storage'),
+                                                            self.host_projects_root_dir, uuid,
+                                                            self.container_projects_root_dir,
+                                                            project_id))
         return user_projects
 
     def get_tas_data(self):
@@ -398,11 +400,12 @@ class AbacoSpawner(Spawner):
                                                                                         self.tas_homedir))
 
     def check_notebook_status(self, ag, status_needed):
-        i=0
+        i = 0
         notebook = NotebookMetadata(self.user.name, ag)
-        while notebook.value['status'] != status_needed and i < 100 :
+        while notebook.value['status'] != status_needed and i < 100:
             notebook = NotebookMetadata(self.user.name, ag)
             i = i + 1
+            print(i)
         return notebook
 
     def options_from_form(self, formdata):

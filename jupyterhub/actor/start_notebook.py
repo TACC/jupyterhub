@@ -36,7 +36,7 @@ if len(env):
 params = {
     'uid':data['uid'],
     'gid':data['gid'],
-    'name':data['name'],
+    'name':data['name'].lower(), #k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
     # 'nb_mem_limit':data['nb_mem_limit'],
     'image':data['image'],
     'volume_mounts':volume_mounts,
@@ -48,21 +48,21 @@ pod = '''
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jupyter
+  name: {name}
 spec:
   selector:
     matchLabels:
-      app: jupyter
+      app: {name}
   template:
     metadata:
       labels:
-        app: jupyter
+        app: {name}
     spec:
       securityContext:
         runAsUser: {uid}
         runAsGroup: {gid}
       containers:
-      - name: jupyter
+      - name: {name}
         image: {image}
         env:
 {environment}
@@ -81,14 +81,32 @@ process = subprocess.run(['kubectl', 'apply', '-f', '-'], input=pod, stdout=subp
 
 status = ''
 while status != 'Running':
-    process = subprocess.run(['kubectl', 'get', 'pods'], stdout=subprocess.PIPE, encoding='utf-8')
+    process = subprocess.run(['kubectl', 'get', 'pods', '-l', 'app={}'.format(params['name'])], stdout=subprocess.PIPE, encoding='utf-8')
     output = process.stdout.split()
     pod_name = output[5]
     status = output[7]
 
-process = subprocess.run(['kubectl', 'apply', '-f', 'service.yml'], stdout=subprocess.PIPE, encoding='utf-8')
+service = '''
+apiVersion: v1
+kind: Service
+metadata:  
+  name: {name}
+  labels:
+    app: {name}
+spec:
+  selector:    
+    app: {name}
+  type: NodePort
+  ports:  
+  - name: http
+    port: 8888
+    targetPort: 8888
+'''
+service=service.format(**params)
 
-process = subprocess.run(['kubectl', 'get', 'service'], stdout=subprocess.PIPE, encoding='utf-8')
+process = subprocess.run(['kubectl', 'apply', '-f', '-'], input=service, stdout=subprocess.PIPE, encoding='utf-8')
+
+process = subprocess.run(['kubectl', 'get', 'service', '-l', 'app={}'.format(params['name'])], stdout=subprocess.PIPE, encoding='utf-8')
 #process.stdout.split() gives ['NAME', 'TYPE', 'CLUSTER-IP', 'EXTERNAL-IP', 'PORT(S)', 'AGE', 'jupyter', 'NodePort', '10.97.5.88', '<none>', '8888:30117/TCP', '5s']
 port = process.stdout.split()[10].split(':')[1].split('/')[0]
 
