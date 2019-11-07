@@ -128,7 +128,7 @@ class AbacoSpawner(Spawner):
                 'params': {
                      "uid": self.configs.get('uid', getattr(self, 'tas_uid', None)),
                      "gid": self.configs.get('gid', getattr(self, 'tas_gid', None)),
-                     "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
+                     "name": "{}-{}-{}-jhub".format(self.user.name, self.tenant, self.instance),
                      "nb_mem_limit": os.environ.get('NB_MEM_LIMIT'),
                      "environment": self.get_env()
                     }
@@ -204,7 +204,7 @@ class AbacoSpawner(Spawner):
             'username': self.user.name,
             'command': 'STOP',
             'params': {
-                 "name": "{}-{}-{}-Jhub".format(self.user.name, self.tenant, self.instance),
+                 "name": "{}-{}-{}-jhub".format(self.user.name, self.tenant, self.instance),
                 }
             }
 
@@ -428,7 +428,7 @@ class NotebookMetadata(object):
         :param user:
         :return:
         """
-        return '{}-{}-{}-JHub'.format(username, self.tenant, self.instance)
+        return '{}-{}-{}-jhub'.format(username, self.tenant, self.instance)
 
     def _get_meta_dict(self, **kwargs):
         """Returns the basic Python dictionary containing the metadata to be stored in Agave."""
