@@ -6,12 +6,12 @@ import subprocess
 import sys
 import re
 
-data = json.loads(sys.argv[1])
+message = json.loads(sys.argv[1])
 
 volume_mounts = ''
 volumes=''
-if len(data['volume_mounts']):
-    for item in data['volume_mounts']:
+if len(message['params']['volume_mounts']):
+    for item in message['params']['volume_mounts']:
         m=item.split(":")
         #volume names must consist of lower case alphanumeric characters or '-',
         #and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc',
@@ -26,7 +26,7 @@ if len(data['volume_mounts']):
         volume_mounts = volume_mounts + '''        - name: {}
           mountPath: "{}"\n'''.format(vol_name, m[2])
 
-env = data['environment']
+env = message['params']['environment']
 
 environment = ''
 if len(env):
@@ -34,11 +34,14 @@ if len(env):
         environment = environment + '        - name: {}\n          value: {}\n'.format(k,v)
 
 params = {
-    'uid':data['uid'],
-    'gid':data['gid'],
-    'name':data['name'].lower(), #k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
-    # 'nb_mem_limit':data['nb_mem_limit'],
-    'image':data['image'],
+    'tenant': message['tenant'],
+    'instance': message['instance'],
+    'username': message['username'],
+    'uid':message['params']['uid'],
+    'gid':message['params']['gid'],
+    'name':message['params']['name'].lower(), #k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
+    # 'nb_mem_limit':message['params']['nb_mem_limit'],
+    'image':message['params']['image'],
     'volume_mounts':volume_mounts,
     'volumes': volumes,
     'environment': environment
@@ -51,6 +54,9 @@ metadata:
   name: {name}
   labels:
     app: {name}
+    tenant: {tenant}
+    instance: {instance}
+    username: {username}
 spec:
   selector:
     matchLabels:
@@ -59,6 +65,9 @@ spec:
     metadata:
       labels:
         app: {name}
+        tenant: {tenant}
+        instance: {instance}
+        username: {username}
     spec:
       securityContext:
         runAsUser: {uid}
@@ -95,6 +104,9 @@ metadata:
   name: {name}
   labels:
     app: {name}
+    tenant: {tenant}
+    instance: {instance}
+    username: {username}
 spec:
   selector:    
     app: {name}
