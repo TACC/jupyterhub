@@ -1,6 +1,6 @@
-# Image: taccsciapps/jupyterhub:0.9.4-1.0.0
+# Image: taccsciapps/jupyterhub:1.0.0-1.0.0
 
-from jupyterhub/jupyterhub:0.9.4
+from jupyterhub/jupyterhub:1.0.0
 
 RUN apt-get update && apt-get install -y build-essential
 RUN pip install oauthenticator agavepy notebook ipdb
