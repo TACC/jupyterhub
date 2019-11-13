@@ -73,8 +73,8 @@ def get_ssh_connection(context, message):
 
 def launch_notebook(message, conn, ip):
     """Launch an JupyterHub notebook container."""
-    command = 'python3 /home/apim/start_notebook.py \'{}\''.format(json.dumps(message.get('params')))
-    command = 'python3 test.py \'{}\''.format(json.dumps(message)) #for testing
+    command = 'python3 /home/apim/start_notebook.py \'{}\''.format(json.dumps(message))
+    command = 'python3 start_notebook.py \'{}\''.format(json.dumps(message)) # for testing TODO: move script to correct location
     print("command: {}".format(command))
     ssh_stdin, ssh_stdout, ssh_stderr = conn.exec_command(command)
     print("ssh connection made and command executed")
