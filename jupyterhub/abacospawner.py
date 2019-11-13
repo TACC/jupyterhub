@@ -16,13 +16,9 @@ TAS_URL_BASE = os.environ.get('TAS_URL_BASE', 'https://tas.tacc.utexas.edu/api/v
 TAS_ROLE_ACCT = os.environ.get('TAS_ROLE_ACCT', 'tas-jetstream')
 TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
-NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')  #TODO should this in the config metadata
-TOKENS_DIR = '{}/jupyter/tokens'.format(NETWORK_STORAGE_ROOT_DIR)
 INSTANCE = os.environ.get('INSTANCE')
 TENANT = os.environ.get('TENANT')
 
-def get_user_token_dir(username):
-    return os.path.join(TOKENS_DIR, INSTANCE, TENANT, username)
 
 class AbacoSpawnerError(Exception):
     def __init__(self, msg):
@@ -32,17 +28,6 @@ class AbacoSpawnerError(Exception):
 class AbacoSpawnerModelError(AbacoSpawnerError):
     pass
 
-def get_agave_exception_content(e):
-    """Check if an Agave exception has content"""
-    try:
-        return e.response.content
-    except Exception:
-        return ""
-
-def get_config_metadata_name():
-    return 'config.{}.{}.jhub'.format(
-        os.environ.get('TENANT'),
-        os.environ.get('INSTANCE'))
 
 class AbacoSpawner(Spawner):
     """Spawner class that leverages an Abaco actor to spawn notebook servers across a datacenter.
@@ -55,6 +40,21 @@ class AbacoSpawner(Spawner):
        metadata service.
 
     """
+
+    def __init__(self, *args, **kwargs):
+        super(Spawner, self).__init__(*args, **kwargs)
+        self.tenant = TENANT
+        self.instance = INSTANCE
+        self.actor_id = os.environ.get('ACTOR_ID')
+        # self.config_metadata_name = 'config.{}.{}.jhub'.format(
+        #     self.tenant,
+        #     self.instance)
+
+        self.ag = self.get_service_client()
+        # q = {'name': self.config_metadata_name}
+        self.configs = self.ag.meta.listMetadata(
+            q=str({'name': 'config.{}.{}.jhub'.format(self.tenant, self.instance)})
+        )[0]['value']
 
     def get_service_client(self):
         """Returns an agave client representing the service account. This client can be used to access
@@ -69,6 +69,17 @@ class AbacoSpawner(Spawner):
 
     def get_oauth_client(self, base_url, access_token, refresh_token):
         return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
+
+    def get_agave_exception_content(self, e):
+        """Check if an Agave exception has content"""
+        try:
+            return e.response.content
+        except Exception:
+            return ""
+
+    def get_user_token_dir(self, username):
+        return os.path.join('{}/jupyter/tokens'.format(
+                self.configs.get('network_storage_root_dir'), self.instance, self.tenant, username))
 
     def load_state(self, state):
         """Restore state of spawner from database.
@@ -109,15 +120,12 @@ class AbacoSpawner(Spawner):
           (str, int): the (ip, port) where the Hub can connect to the server.
 
         """
-        self.actor_id = os.environ.get('ACTOR_ID')
-        self.tenant = TENANT
-        self.instance = INSTANCE
         self.set_agave_access_data()
         self.get_tas_data()
 
         ag = self.get_service_client()
-        q={'name': get_config_metadata_name()}
-        self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
+        # q={'name': self.config_metadata_name()}
+        # self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
         message = {
                 'actor_id': os.environ.get('ACTOR_ID'),
@@ -157,9 +165,9 @@ class AbacoSpawner(Spawner):
                 message['params']['volume_mounts'].append(vol.format(**template_vars))
 #TODO figure out where these should live
 #        message['params']['volume_mounts'].append('{}:{}:/etc/.agpy:ro'.format(
-#            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), '.agpy')))
+#            self.configs.get('network_storage'), os.path.join(self.get_user_token_dir(self.user.name), '.agpy')))
 #        message['params']['volume_mounts'].append('{}:{}:/home/jupyter/.agave/current:ro'.format(
-#            os.environ.get("NETWORK_STORAGE"), os.path.join(get_user_token_dir(self.user.name), 'current')))
+#            self.configs.get('network_storage'), os.path.join(self.get_user_token_dir(self.user.name), 'current')))
 
         projects = self.get_projects()
         if projects:
@@ -170,9 +178,9 @@ class AbacoSpawner(Spawner):
 
         try:
             self.log.info("Calling actor {} to start {} {} jupyterhub for user: {}. Message: {}".format(self.actor_id, self.tenant, self.instance, self.user.name, message))
-            rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
+            rsp = self.ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
         except Exception as e:
-            msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
+            msg = "Error executing actor. Execption: {}. Content: {}".format(e, self.get_agave_exception_content(e))
             self.log.error(msg)
 
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
@@ -195,8 +203,8 @@ class AbacoSpawner(Spawner):
         Must be a coroutine.
         """
         ag = self.get_service_client()
-        q={'name': get_config_metadata_name()}
-        self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
+        # q={'name': self.config_metadata_name()}
+        # self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
         message = {
             'tenant': self.tenant,
@@ -213,9 +221,9 @@ class AbacoSpawner(Spawner):
 
         try:
             self.log.info("Calling actor {} to stop {} {} jupyterhub for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
-            rsp = ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
+            rsp = self.ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
         except Exception as e:
-            msg = "Error executing actor. Execption: {}. Content: {}".format(e, get_agave_exception_content(e))
+            msg = "Error executing actor. Execption: {}. Content: {}".format(e, self.get_agave_exception_content(e))
             self.log.error(msg)
 
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
@@ -263,7 +271,7 @@ class AbacoSpawner(Spawner):
         :return:
         """
 
-        token_file = os.path.join(get_user_token_dir(self.user.name), '.agpy')
+        token_file = os.path.join(self.get_user_token_dir(self.user.name), '.agpy')
         self.log.info("spawner looking for token file: {} for user: {}".format(token_file, self.user.name))
         if not os.path.exists(token_file):
             self.log.warn("abacospawner did not find a token file at {}".format(token_file))
@@ -497,8 +505,8 @@ class NotebookMetadata(object):
         """
         if not username:
             raise AbacoSpawnerModelError("no user defined.")
-        self.instance = os.environ.get('INSTANCE', 'develop')
-        self.tenant = os.environ.get('TENANT', 'dev')
+        self.instance = INSTANCE
+        self.tenant = TENANT
         self.username = username
         self.name = self.get_metadata_name(username)
         self.ag = ag

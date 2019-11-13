@@ -24,17 +24,22 @@ from .oauth2 import OAuthLoginHandler, OAuthenticator
 
 from agavepy.agave import Agave
 
-NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')
-TOKENS_DIR = '{}/jupyter/tokens'.format(NETWORK_STORAGE_ROOT_DIR)
 
 INSTANCE = os.environ.get('INSTANCE')
 TENANT = os.environ.get('TENANT')
 
+
 def get_user_token_dir(username):
-    return os.path.join(TOKENS_DIR, INSTANCE, TENANT, username)
+    return os.path.join(
+        '{}/jupyter/tokens'.format(os.environ.get('LOCAL_NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')),
+        INSTANCE,
+        TENANT,
+        username)
+
 
 def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(TENANT, INSTANCE)
+
 
 service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
 
@@ -46,9 +51,11 @@ ag = Agave(api_server=base_url, token=service_token)
 q={'name': get_config_metadata_name()}
 configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
+TOKENS_DIR = '{}/jupyter/tokens'.format(os.environ.get('LOCAL_NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave'))
+
 class AgaveMixin(OAuth2Mixin):
-    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(configs.get('agave_base_url'))
-    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(configs.get('agave_base_url'))
+    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(configs.get('agave_base_url').rstrip('/'))
+    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(configs.get('agave_base_url').rstrip('/'))
 
 
 class AgaveLoginHandler(OAuthLoginHandler, AgaveMixin):
@@ -84,7 +91,7 @@ class AgaveOAuthenticator(OAuthenticator):
         )
 
         url = url_concat(
-            "{}/oauth2/token".format(configs.get('agave_base_url')), params)
+            "{}/oauth2/token".format(configs.get('agave_base_url').rstrip('/')), params)
         self.log.info(url)
         self.log.info(params)
         bb_header = {"Content-Type":
@@ -113,7 +120,7 @@ class AgaveOAuthenticator(OAuthenticator):
                    "User-Agent": "JupyterHub",
                    "Authorization": "Bearer {}".format(access_token)
                    }
-        req = HTTPRequest("{}/profiles/v2/me".format(configs.get('agave_base_url')),
+        req = HTTPRequest("{}/profiles/v2/me".format(configs.get('agave_base_url').rstrip('/')),
                           validate_cert=eval(configs.get('oauth_validate_cert')),
                           method="GET",
                           headers=headers
@@ -164,7 +171,7 @@ class AgaveOAuthenticator(OAuthenticator):
              'tenant_id': tenant_id,
              'api_key': configs.get('agave_client_id'),
              'api_secret': configs.get('agave_client_secret'),
-             'api_server': '{}'.format(configs.get('agave_base_url')),
+             'api_server': '{}'.format(configs.get('agave_base_url').rstrip('/')),
              'verify': eval(configs.get('oauth_validate_cert')),
              }]
         with open(os.path.join(get_user_token_dir(username), '.agpy'), 'w') as f:
@@ -173,7 +180,7 @@ class AgaveOAuthenticator(OAuthenticator):
         self.log.info("agavepy cache file data: {}".format(d))
         # cli file
         d = {'tenantid': tenant_id,
-             'baseurl': '{}'.format(configs.get('agave_base_url')),
+             'baseurl': '{}'.format(configs.get('agave_base_url').rstrip('/')),
              'devurl': '',
              'apikey': configs.get('agave_client_id'),
              'username': username,
