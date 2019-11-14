@@ -43,15 +43,12 @@ class AbacoSpawner(Spawner):
 
     def __init__(self, *args, **kwargs):
         super(Spawner, self).__init__(*args, **kwargs)
+
         self.tenant = TENANT
         self.instance = INSTANCE
         self.actor_id = os.environ.get('ACTOR_ID')
-        # self.config_metadata_name = 'config.{}.{}.jhub'.format(
-        #     self.tenant,
-        #     self.instance)
 
         self.ag = self.get_service_client()
-        # q = {'name': self.config_metadata_name}
         self.configs = self.ag.meta.listMetadata(
             q=str({'name': 'config.{}.{}.jhub'.format(self.tenant, self.instance)})
         )[0]['value']
@@ -78,7 +75,7 @@ class AbacoSpawner(Spawner):
             return ""
 
     def get_user_token_dir(self, username):
-        return os.path.join('{}/jupyter/tokens'.format(
+        return os.path.join('{}/jupyter/tokens/{}/{}/{}'.format(
                 self.configs.get('network_storage_root_dir'), self.instance, self.tenant, username))
 
     def load_state(self, state):
@@ -124,8 +121,6 @@ class AbacoSpawner(Spawner):
         self.get_tas_data()
 
         ag = self.get_service_client()
-        # q={'name': self.config_metadata_name()}
-        # self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
         message = {
                 'actor_id': os.environ.get('ACTOR_ID'),
@@ -138,7 +133,9 @@ class AbacoSpawner(Spawner):
                      "gid": self.configs.get('gid', getattr(self, 'tas_gid', None)),
                      "name": "{}-{}-{}-jhub".format(self.user.name, self.tenant, self.instance),
                      "nb_mem_limit": os.environ.get('NB_MEM_LIMIT'),
-                     "environment": self.get_env()
+                     "environment": self.get_env(),
+                     "access_token": self.access_token,
+                     "refresh_token": self.refresh_token
                     }
                 }
 
@@ -203,8 +200,6 @@ class AbacoSpawner(Spawner):
         Must be a coroutine.
         """
         ag = self.get_service_client()
-        # q={'name': self.config_metadata_name()}
-        # self.configs = ag.meta.listMetadata(q=str(q))[0]['value']
 
         message = {
             'tenant': self.tenant,
@@ -410,7 +405,7 @@ class AbacoSpawner(Spawner):
     def check_notebook_status(self, ag, status_needed):
         i = 0
         notebook = NotebookMetadata(self.user.name, ag)
-        while notebook.value['status'] != status_needed and i < 100:
+        while notebook.value['status'] != status_needed and i < 1000:
             notebook = NotebookMetadata(self.user.name, ag)
             i = i + 1
             print(i)
@@ -505,8 +500,8 @@ class NotebookMetadata(object):
         """
         if not username:
             raise AbacoSpawnerModelError("no user defined.")
-        self.instance = INSTANCE
-        self.tenant = TENANT
+        self.instance = os.environ['INSTANCE'] #env variables to help actor --todo can just make tenant and instance CAPS vars in actor
+        self.tenant = os.environ['TENANT']
         self.username = username
         self.name = self.get_metadata_name(username)
         self.ag = ag

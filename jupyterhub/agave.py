@@ -130,8 +130,8 @@ class AgaveOAuthenticator(OAuthenticator):
         self.log.info('resp_json after /profiles/v2/me:',str(resp_json))
         username = resp_json["result"]["username"]
 
-        self.ensure_token_dir(username)
-        self.save_token(access_token, refresh_token, username, created_at, expires_in, expires_at)
+        self.ensure_token_dir(username) #todo figure this out
+        self.save_token(access_token, refresh_token, username, created_at, expires_in, expires_at) #todo
         return username
 
     def ensure_token_dir(self, username):
