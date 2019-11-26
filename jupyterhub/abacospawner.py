@@ -120,8 +120,6 @@ class AbacoSpawner(Spawner):
         self.set_agave_access_data()
         self.get_tas_data()
 
-        ag = self.get_service_client()
-
         message = {
                 'actor_id': os.environ.get('ACTOR_ID'),
                 'tenant': self.tenant,
@@ -170,7 +168,7 @@ class AbacoSpawner(Spawner):
         if projects:
             message['params']['volume_mounts'] = message['params']['volume_mounts'] + projects
 
-        notebook = NotebookMetadata(self.user.name, ag)
+        notebook = NotebookMetadata(self.user.name, self.ag)
         notebook.set_submitted()
 
         try:
@@ -182,7 +180,7 @@ class AbacoSpawner(Spawner):
 
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
 
-        notebook = self.check_notebook_status(ag, NotebookMetadata.ready_status)
+        notebook = self.check_notebook_status(self.ag, NotebookMetadata.ready_status)
         self.log.info("{} {} jupyterhub for user: {} is {}. ip: {}. "
                       "port: {}".format(self.tenant, self.instance, self.user.name,
                                         notebook.value['status'], notebook.value['ip'], notebook.value['port']))
@@ -199,7 +197,6 @@ class AbacoSpawner(Spawner):
 
         Must be a coroutine.
         """
-        ag = self.get_service_client()
 
         message = {
             'tenant': self.tenant,
@@ -211,7 +208,7 @@ class AbacoSpawner(Spawner):
                 }
             }
 
-        notebook = NotebookMetadata(self.user.name, ag)
+        notebook = NotebookMetadata(self.user.name, self.ag)
         notebook.set_stop_submitted()
 
         try:
@@ -253,8 +250,8 @@ class AbacoSpawner(Spawner):
           process. `poll` should return None when `start` is yielded, indicating that the `start`
           process has not yet completed.
         """
-        ag = self.get_service_client()
-        notebook = NotebookMetadata(self.user.name, ag)
+
+        notebook = NotebookMetadata(self.user.name, self.ag)
         if notebook.value['status'] == (NotebookMetadata.ready_status or NotebookMetadata.submitted_status):
             return None
         else:
@@ -274,6 +271,7 @@ class AbacoSpawner(Spawner):
             return None
         try:
             data = json.load(open(token_file))
+
         except ValueError:
             self.log.warn('could not ready json from token file')
             return None
