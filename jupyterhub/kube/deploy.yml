@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hub
+  labels:
+    app: hub
+spec:
+  selector:
+    matchLabels:
+      app: hub
+  template:
+    metadata:
+      labels:
+        app: hub
+    spec:
+      containers:
+      - name: hub
+        image: tacc/jhub-test
+        env:
+        - name: AGAVE_SERVICE_TOKEN
+          value:
+        - name: AGAVE_BASE_URL
+          value: https://api.tacc.utexas.edu
+        - name: TENANT
+          value:
+        - name: INSTANCE
+          value:
