@@ -8,8 +8,48 @@ import re
 
 message = json.loads(sys.argv[1])
 
-volume_mounts = ''
-volumes=''
+params = {
+    'tenant': message['tenant'],
+    'instance': message['instance'],
+    'username': message['username'],
+    'uid':message['params']['uid'],
+    'gid':message['params']['gid'],
+    'name':message['params']['name'].lower(), #k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
+    # 'nb_mem_limit':message['params']['nb_mem_limit'],
+    'image':message['params']['image'],
+}
+
+# volume_mounts = '''
+#         - name: {name}-current
+#           mountPath: "/home/jupyter/.agave"
+#         - name: {name}-agpy
+#           mountPath: "/etc"
+# '''
+# volume_mounts=volume_mounts.format(**params)
+#
+# volumes='''
+#       - name: {name}-current
+#         configMap:
+#           name: {name}-current
+#       - name: {name}-agpy
+#         configMap:
+#           name: {name}-agpy
+# '''
+# volumes=volumes.format(**params)
+
+volume_mounts = '''
+        - name: {name}-current
+          mountPath: "/home/jupyter/.agave"
+'''
+volume_mounts=volume_mounts.format(**params)
+
+volumes='''
+      - name: {name}-current
+        configMap:
+          name: {name}-current
+'''
+volumes=volumes.format(**params)
+
 if len(message['params']['volume_mounts']):
     for item in message['params']['volume_mounts']:
         m=item.split(":")
@@ -25,27 +65,15 @@ if len(message['params']['volume_mounts']):
           readOnly: {}\n'''.format(vol_name, m[0], m[1], read_only)
         volume_mounts = volume_mounts + '''        - name: {}
           mountPath: "{}"\n'''.format(vol_name, m[2])
+params['volumes'] = volumes
+params['volume_mounts'] = volume_mounts
 
 env = message['params']['environment']
-
 environment = ''
 if len(env):
     for k,v in env.items():
         environment = environment + '        - name: {}\n          value: {}\n'.format(k,v)
-
-params = {
-    'tenant': message['tenant'],
-    'instance': message['instance'],
-    'username': message['username'],
-    'uid':message['params']['uid'],
-    'gid':message['params']['gid'],
-    'name':message['params']['name'].lower(), #k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
-    # 'nb_mem_limit':message['params']['nb_mem_limit'],
-    'image':message['params']['image'],
-    'volume_mounts':volume_mounts,
-    'volumes': volumes,
-    'environment': environment
-}
+params['environment'] = environment
 
 pod = '''
 apiVersion: apps/v1
@@ -125,3 +153,4 @@ process = subprocess.run(['kubectl', 'get', 'service', '-l', 'app={}'.format(par
 port = process.stdout.split()[10].split(':')[1].split('/')[0]
 
 print(port)
+print(pod)

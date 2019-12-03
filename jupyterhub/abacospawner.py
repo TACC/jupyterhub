@@ -220,7 +220,7 @@ class AbacoSpawner(Spawner):
 
         self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
 
-        notebook = self.check_notebook_status(ag, NotebookMetadata.stopped_status)
+        notebook = self.check_notebook_status(self.ag, NotebookMetadata.stopped_status)
         self.log.info("{} {} jupyterhub for user: {} is {}".format(self.tenant, self.instance, self.user.name, notebook.value['status']))
         return notebook.value['status']
 
@@ -271,7 +271,6 @@ class AbacoSpawner(Spawner):
             return None
         try:
             data = json.load(open(token_file))
-
         except ValueError:
             self.log.warn('could not ready json from token file')
             return None
@@ -282,12 +281,33 @@ class AbacoSpawner(Spawner):
             self.log.info("Setting refresh token: {}".format(self.refresh_token))
             self.url = data[0]['api_server']
             self.log.info("Setting url: {}".format(self.url))
-            return None
+
         except (TypeError, KeyError):
             self.access_token = None
             self.refresh_token = None
             self.url = None
             self.log.warn("token file did not have an access token and/or an api_server. data: {}".format(data))
+
+        message = {
+            'tenant': self.tenant,
+            'instance': self.instance,
+            'username': self.user.name,
+            'command': 'CREATE_CONFIGMAP',
+            'params': {
+                "name": "{}-{}-{}-jhub".format(self.user.name, self.tenant, self.instance),
+                "agpy": data,
+                "current": json.load(open(os.path.join(self.get_user_token_dir(self.user.name), 'current')))
+            }
+        }
+
+        try:
+            self.log.info("Calling actor {} to create {} {} k8 configmaps for user: {}".format(self.actor_id, self.tenant, self.instance, self.user.name))
+            rsp = self.ag.actors.sendMessage(actorId=self.actor_id, body={'message': message})
+        except Exception as e:
+            msg = "Error executing actor. Execption: {}. Content: {}".format(e, self.get_agave_exception_content(e))
+            self.log.error(msg)
+
+        self.log.info("Called actor {}. Response: {}".format(self.actor_id, rsp))
         return None
 
     def get_projects(self):
@@ -547,3 +567,4 @@ class NotebookMetadata(object):
         """Return the status of associated with this notebook."""
         # refresh the object's representation from Agave:
         return self.value['status']
+

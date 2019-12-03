@@ -3,10 +3,8 @@
 # "command" string:
 #    1. START - Start a new Jupyterhub notebooks for a user.
 #    2. STOP  - Stop and remove the Jupyterhub notebook container associated with a user.
-#    3. SYNC  - Sync the metadata record with the existing state of the notebook container
-#               associated with a user. The existence of a Jupyterhub container or its state
-#               will not be affected by this command; only the metadata record will be
-#               modified.
+#    3. UPDATE  - Update metadata record with IP and PORT returned by HPC app.
+#    4. CREATE_CONFIGMAP - Create k8 ConfigMap
 #
 # Required parameters. The following parameters should be registered in the actor's default
 # environment or passed in the JSON message when executing the actor. This actor looks
@@ -106,6 +104,7 @@ def stop_notebook(container_name, conn):
     print("st out from command: {}".format(st_out))
     st_err = ssh_stderr.read()
     print("st err from command: {}".format(st_err))
+    #TODO delete deployment
 
 def main():
     context = get_context()
@@ -229,6 +228,24 @@ def main():
         notebook.set_ready(ip=ip, port=port)
         print('****' * 100, 'updated notebook value: {}'.format(notebook.value))
 
+    elif command == 'CREATE_CONFIGMAP':
+        command = 'python3 /home/apim/create_configmap.py \'{}\''.format(json.dumps(message))
+        command = 'python3 create_configmap.py \'{}\''.format(
+            json.dumps(message))  # for testing TODO: move script to correct location
+        print("create config command: {}".format(command))
+        ssh_stdin, ssh_stdout, ssh_stderr = conn.exec_command(command)
+        print("ssh connection made and command executed")
+        st_out = ssh_stdout.read()
+        print("st out from command: {}".format(st_out))
+        st_err = ssh_stderr.read()
+        print("st err from command: {}".format(st_err))
+        time.sleep(2)
 
+        try:
+            output = st_out.decode('utf-8').strip()
+        except Exception as e:
+            print("Got exception parsing the standard out of the configmap creation. "
+                  "Standard out was: {}; Exception was: {}".format(st_out, e))
+            return ""
 
 main()
