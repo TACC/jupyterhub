@@ -401,7 +401,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #
 #  Should be a subclass of Spawner.
 #c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
-c.JupyterHub.spawner_class = 'jupyterhub.abacospawner.AbacoSpawner'
+c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 
 ## Path to SSL certificate file for the public facing interface of the proxy
 #
