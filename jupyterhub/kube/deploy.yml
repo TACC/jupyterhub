@@ -15,7 +15,12 @@ spec:
     spec:
       containers:
       - name: hub
-        image: tacc/jhub-test
+        image: mlm55/jupyterhub_hub
+        ports:
+        - name: http
+          containerPort: 8000
+        - name: notebook
+          containerPort: 8081
         env:
         - name: HUB_CONNECT_IP
           value: hub
