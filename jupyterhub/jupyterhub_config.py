@@ -94,6 +94,7 @@ print(configs)
 #    and `data` is the POST form data from the login page.
 #c.JupyterHub.authenticator_class = 'jupyterhub.auth.PAMAuthenticator'
 c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
+c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
 
 # c.AgaveOAuthenticator.service_token = os.environ['AGAVE_SERVICE_TOKEN']
 # c.AgaveOAuthenticator.service_client_id = os.environ['AGAVE_CLIENT_ID']
@@ -255,6 +256,7 @@ c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
 #
 #  .. versionadded:: 0.8
 #c.JupyterHub.hub_connect_ip = ''
+c.JupyterHub.hub_connect_ip = os.environ.get('HUB_CONNECT_IP')
 
 ## DEPRECATED
 #
@@ -965,3 +967,9 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
 
 ## The number of threads to allocate for encryption
 #c.CryptKeeper.n_threads = 8
+
+
+# DEBUGGING
+c.KubeSpawner.debug = True
+c.KubeSpawner.delete_stopped_pods = False
+c.KubeSpawner.args = ['--allow-root']

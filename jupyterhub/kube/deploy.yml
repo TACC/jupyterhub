@@ -17,6 +17,8 @@ spec:
       - name: hub
         image: tacc/jhub-test
         env:
+        - name: HUB_CONNECT_IP
+          value: hub
         - name: AGAVE_SERVICE_TOKEN
           value:
         - name: AGAVE_BASE_URL
