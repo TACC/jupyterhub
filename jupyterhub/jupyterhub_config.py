@@ -94,7 +94,7 @@ print(configs)
 #    and `data` is the POST form data from the login page.
 #c.JupyterHub.authenticator_class = 'jupyterhub.auth.PAMAuthenticator'
 c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
-c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
+# c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
 
 # c.AgaveOAuthenticator.service_token = os.environ['AGAVE_SERVICE_TOKEN']
 # c.AgaveOAuthenticator.service_client_id = os.environ['AGAVE_CLIENT_ID']

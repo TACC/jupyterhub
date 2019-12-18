@@ -3,7 +3,7 @@
 from jupyterhub/jupyterhub:1.0.0
 
 RUN apt-get update && apt-get install -y build-essential
-RUN pip install oauthenticator agavepy notebook ipdb
+RUN pip install oauthenticator agavepy jupyterhub-kubespawner notebook ipdb git+https://github.com/kubernetes-client/python.git
 
 ADD abacospawner.py /opt/conda/lib/python3.6/site-packages/jupyterhub/abacospawner.py
 ADD jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py

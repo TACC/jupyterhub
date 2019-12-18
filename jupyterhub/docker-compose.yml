@@ -2,29 +2,6 @@ version: "2"
 
 services:
 
-  hub:
-    stdin_open: true
-    tty: true
-    build: .
-    command: >
-      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
-    ports:
-      - 8000:8000
-    environment:
-      AGAVE_CLIENT_ID: ""
-      AGAVE_CLIENT_SECRET: ""
-      AGAVE_SERVICE_TOKEN: ""
-      AGAVE_BASE_URL: ""
-      ACTOR_ID: ""
-      TENANT: ""
-      INSTANCE: ""
-      TAS_URL_BASE: ""
-      TAS_ROLE_ACCT: ""
-      TAS_ROLE_PASS: ""
-      HUB_IP: ""
-      HUB_PORT: ""
-      NB_MEM_LIMIT: ""
-
   nginx:
     image: nginx
     volumes:
@@ -34,8 +11,3 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    volumes_from:
-      - hub
-
-    links:
-      - hub:hub
