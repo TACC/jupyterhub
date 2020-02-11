@@ -403,7 +403,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #
 #  Should be a subclass of Spawner.
 #c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
-c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
+c.JupyterHub.spawner_class = 'jupyterhub.taccspawner.TaccSpawner'
 
 ## Path to SSL certificate file for the public facing interface of the proxy
 #
@@ -691,7 +691,7 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
     for image in image_options:
         options = options + ' <option value="{}"> {} </option>'.format(image, image)
         print(options)
-    c.AbacoSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
+    c.KubeSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
 
 ## Interval (in seconds) on which to poll the spawner for single-user server's
 #  status.
@@ -970,6 +970,16 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
 
 
 # DEBUGGING
+# c.TaccSpawner.debug = True
+# c.TaccSpawner.delete_stopped_pods = False
+# c.TaccSpawner.args = ['--allow-root']
+
+
+
+# testing
+c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 c.KubeSpawner.debug = True
 c.KubeSpawner.delete_stopped_pods = False
 c.KubeSpawner.args = ['--allow-root']
+from jupyterhub.taccspawner import hook
+c.KubeSpawner.pre_spawn_hook = hook
