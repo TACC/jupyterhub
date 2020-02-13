@@ -403,7 +403,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #
 #  Should be a subclass of Spawner.
 #c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
-c.JupyterHub.spawner_class = 'jupyterhub.taccspawner.TaccSpawner'
+c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 
 ## Path to SSL certificate file for the public facing interface of the proxy
 #
@@ -969,17 +969,11 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
 #c.CryptKeeper.n_threads = 8
 
 
-# DEBUGGING
-# c.TaccSpawner.debug = True
-# c.TaccSpawner.delete_stopped_pods = False
-# c.TaccSpawner.args = ['--allow-root']
-
-
-
 # testing
-c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 c.KubeSpawner.debug = True
 c.KubeSpawner.delete_stopped_pods = False
 c.KubeSpawner.args = ['--allow-root']
+
+#setup
 from jupyterhub.taccspawner import hook
 c.KubeSpawner.pre_spawn_hook = hook

@@ -32,3 +32,9 @@ spec:
           value:
         - name: INSTANCE
           value:
+        - name: TAS_URL_BASE
+          value: https://tas.tacc.utexas.edu/api/v1
+        - name: TAS_ROLE_ACCT
+          value: tas-jetstream
+        - name: TAS_ROLE_PASS
+          value:
