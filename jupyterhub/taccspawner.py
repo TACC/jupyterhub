@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import string
 
 import logging
 
@@ -28,7 +29,7 @@ def hook(spawner):
     )[0]['value']
 
     get_agave_access_data(spawner)
-    logger.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
+    spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
 
     get_tas_data(spawner)
 
@@ -36,7 +37,12 @@ def hook(spawner):
     # if uid and not configs.get('uid'):
     #     spawner.uid = uid
     get_mounts(spawner)
-    spawner.image = u'taccsciapps/jupyteruser-ds:1.2.5'
+
+    if len(spawner.configs.get('images')) == 1:  # only 1 image option
+        spawner.image = spawner.configs.get('images')[0]
+    else:
+        spawner.image = spawner.user_options['image'][0]
+
     spawner.start_timeout = 60*6
     # spawner.volumes = [
     #     {'name': 'mlm55-designsafe-staging-jhub-agpy',
@@ -68,6 +74,20 @@ def get_service_client():
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
 
+def safe_string(to_escape, safe=set(string.ascii_lowercase + string.digits), escape_char='-'):
+    """Escape a string so that it only contains characters in a safe set.
+    Characters outside the safe list will be escaped with _%x_,
+    where %x is the hex value of the character.
+    """
+
+    chars = []
+    for c in to_escape:
+        if c in safe:
+            chars.append(c)
+        else:
+            chars.append(_escape_char(c, escape_char))
+    return u''.join(chars)
+
 
 def get_agave_access_data(spawner):
     """
@@ -78,36 +98,35 @@ def get_agave_access_data(spawner):
     # k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
     # do all tenant names follow that? usernames?
     token_file = os.path.join(get_user_token_dir(spawner.user.name), '.agpy')
-    logger.info("spawner looking for token file: {} for user: {}".format(token_file, spawner.user.name))
+    spawner.log.info("spawner looking for token file: {} for user: {}".format(token_file, spawner.user.name))
     if not os.path.exists(token_file):
-        logger.warning("spawner did not find a token file at {}".format(token_file))
+        spawner.log.warning("spawner did not find a token file at {}".format(token_file))
         return None
     try:
         data = json.load(open(token_file))
     except ValueError:
-        logger.warning('could not ready json from token file')
+        spawner.log.warning('could not ready json from token file')
         return None
 
     try:
         spawner.access_token = data[0]['token']
-        logger.info("Setting token: {}".format(spawner.access_token))
+        spawner.log.info("Setting token: {}".format(spawner.access_token))
         spawner.refresh_token = data[0]['refresh_token']
-        logger.info("Setting refresh token: {}".format(spawner.refresh_token))
+        spawner.log.info("Setting refresh token: {}".format(spawner.refresh_token))
         spawner.url = data[0]['api_server']
-        logger.info("Setting url: {}".format(spawner.url))
+        spawner.log.info("Setting url: {}".format(spawner.url))
 
     except (TypeError, KeyError):
-        logger.warning("token file did not have an access token and/or an api_server. data: {}".format(data))
+        spawner.log.warning("token file did not have an access token and/or an api_server. data: {}".format(data))
         return None
 
 def get_tas_data(spawner):
     """Get the TACC uid, gid and homedir for this user from the TAS API."""
-    spawner.log.info('***asdf'*1234)
     if not TAS_ROLE_ACCT:
-        logger.error("No TAS_ROLE_ACCT configured. Aborting.")
+        spawner.log.error("No TAS_ROLE_ACCT configured. Aborting.")
         return
     if not TAS_ROLE_PASS:
-        logger.error("No TAS_ROLE_PASS configured. Aborting.")
+        spawner.log.error("No TAS_ROLE_PASS configured. Aborting.")
         return
     url = '{}/users/username/{}'.format(TAS_URL_BASE, spawner.user.name)
     headers = {'Content-type': 'application/json',
@@ -118,20 +137,20 @@ def get_tas_data(spawner):
                            headers=headers,
                            auth=requests.auth.HTTPBasicAuth(TAS_ROLE_ACCT, TAS_ROLE_PASS))
     except Exception as e:
-        logger.error("Got an exception from TAS API. "
+        spawner.log.error("Got an exception from TAS API. "
                        "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(e, url, TAS_ROLE_ACCT))
         return
     try:
         data = rsp.json()
     except Exception as e:
-        logger.error("Did not get JSON from TAS API. rsp: {}"
+        spawner.log.error("Did not get JSON from TAS API. rsp: {}"
                        "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(rsp, e, url, TAS_ROLE_ACCT))
         return
     try:
         spawner.tas_uid = data['result']['uid']
         spawner.tas_homedir = data['result']['homeDirectory']
     except Exception as e:
-        logger.error("Did not get attributes from TAS API. rsp: {}"
+        spawner.log.error("Did not get attributes from TAS API. rsp: {}"
                        "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(rsp, e, url, TAS_ROLE_ACCT))
         return
 
@@ -142,17 +161,17 @@ def get_tas_data(spawner):
         ag = get_oauth_client(spawner.url, spawner.access_token, spawner.refresh_token)
         meta_name = 'profile.{}.{}'.format(TENANT, spawner.user.name)
         q = "{'name': '" + meta_name + "'}"
-        logger.info("using query: {}".format(q))
+        spawner.log.info("using query: {}".format(q))
         try:
             rsp = ag.meta.listMetadata(q=q)
         except Exception as e:
-            logger.error("Got an exception trying to retrieve the extended profile. Exception: {}".format(e))
+            spawner.log.error("Got an exception trying to retrieve the extended profile. Exception: {}".format(e))
         try:
-            spawnertas_gid = rsp[0].value['posix_gid']
+            spawner.tas_gid = rsp[0].value['posix_gid']
         except IndexError:
-            spawnertas_gid = None
+            spawner.tas_gid = None
         except Exception as e:
-            logger.error(
+            spawner.log.error(
                 "Got an exception trying to retrieve the gid from the extended profile. Exception: {}".format(e))
     # if the instance has a configured TAS_GID to use we will use that; otherwise,
     # we fall back on using the user's uid as the gid, which is (almost) always safe)
@@ -170,21 +189,25 @@ def get_user_token_dir(username):
             username)
 
 def get_mounts(spawner):
+    #username is already cleaned by kubespawner
+    safe_username = safe_string(spawner.user.name).lower()
+    safe_tenant = safe_string(TENANT).lower()
+    safe_instance = safe_string(INSTANCE).lower()
     spawner.volumes = [
-        {'name': 'mlm55-designsafe-staging-jhub-agpy',
-         'configMap': {'name': 'mlm55-designsafe-staging-jhub-agpy', }
+        {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
+         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance), }
          },
-        {'name': 'mlm55-designsafe-staging-jhub-current',
-         'configMap': {'name': 'mlm55-designsafe-staging-jhub-current', }
+        {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
+         'configMap': {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance), }
          },
     ]
     spawner.volume_mounts = [
          {'mountPath':'/etc/.agpy',
-          'name': 'mlm55-designsafe-staging-jhub-agpy',
+          'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
           'subPath': '.agpy'
          },
         {'mountPath': '/home/jupyter/.agave',
-         'name': 'mlm55-designsafe-staging-jhub-current'
+         'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance)
          },
     ]
     # volume_mounts = spawner.configs.get('volume_mounts')
@@ -192,3 +215,4 @@ def get_mounts(spawner):
     # if len(volume_mounts):
     #     for vol in volume_mounts:
     #         message['params']['volume_mounts'].append(vol.format(**template_vars))
+

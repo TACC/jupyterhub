@@ -18,6 +18,7 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 
 from jupyterhub.auth import LocalAuthenticator
+from jupyterhub.taccspawner import safe_string
 
 from traitlets import Set
 
@@ -190,7 +191,13 @@ class AgaveOAuthenticator(OAuthenticator):
 
         api_instance = client.CoreV1Api(client.ApiClient(configuration))
         # k8 names must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character
-        configmap_name_prefix = '{}-{}-{}-jhub'.format(username, TENANT, INSTANCE)
+        # safe_username = escapism.escape(self.user.name, safe=safe_chars, escape_char='-').lower()
+        # safe_tenant = '-{}'.format(escapism.escape(TENANT, safe=safe_chars, escape_char='-').lower())
+        # safe_instance = '-{}'.format(escapism.escape(INSTANCE, safe=safe_chars, escape_char='-').lower())
+        safe_username = safe_string(username).lower()
+        safe_tenant = safe_string(TENANT).lower()
+        safe_instance = safe_string(INSTANCE).lower()
+        configmap_name_prefix = '{}-{}-{}-jhub'.format(safe_username, safe_tenant, safe_instance)
         body = client.V1ConfigMap(
             data={name: str(d)},
             metadata={
