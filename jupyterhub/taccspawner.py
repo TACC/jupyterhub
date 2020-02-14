@@ -6,11 +6,8 @@ import string
 import logging
 
 from agavepy.agave import Agave
-from jupyterhub.spawner import Spawner, LocalProcessSpawner
-from kubespawner import KubeSpawner
+from jupyterhub.common import TENANT, INSTANCE, CONFIGS, safe_string
 
-
-logger = logging.getLogger(__name__)
 
 # TAS configuration:
 # base URL for TAS API.
@@ -19,14 +16,8 @@ TAS_ROLE_ACCT = os.environ.get('TAS_ROLE_ACCT', 'tas-jetstream')
 TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 
-INSTANCE = os.environ.get('INSTANCE')
-TENANT = os.environ.get('TENANT')
-
 def hook(spawner):
-    ag = get_service_client()
-    spawner.configs = ag.meta.listMetadata(
-        q=str({'name': 'config.{}.{}.jhub'.format(TENANT, INSTANCE)})
-    )[0]['value']
+    spawner.configs = CONFIGS
 
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
@@ -44,50 +35,9 @@ def hook(spawner):
         spawner.image = spawner.user_options['image'][0]
 
     spawner.start_timeout = 60*6
-    # spawner.volumes = [
-    #     {'name': 'mlm55-designsafe-staging-jhub-agpy',
-    #      'configMap': {'name': 'mlm55-designsafe-staging-jhub-agpy',}
-    #      },
-    #     {'name': 'mlm55-designsafe-staging-jhub-current',
-    #      'configMap': {'name': 'mlm55-designsafe-staging-jhub-current',}
-    #      },
-    # ]
-    # spawner.volume_mounts = [
-    #     {'mountPath':'/home/jupyter/test',#for testing -- should be mounted to /etc
-    #     # {'mountPath':'/etc',
-    #      'name':'mlm55-designsafe-staging-jhub-agpy'
-    #      },
-    #     {'mountPath':'/home/jupyter/.agave',
-    #      'name':'mlm55-designsafe-staging-jhub-current'
-    #      },
-    # ]
-
-def get_service_client():
-    """Returns an agave client representing the service account. This client can be used to access
-    the authorized endpoints such as the Abaco endpoint."""
-    service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
-    if not service_token:
-        raise Exception("Missing SERVICE_TOKEN configuration.")
-    base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
-    return Agave(api_server=base_url, token=service_token)
 
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
-
-def safe_string(to_escape, safe=set(string.ascii_lowercase + string.digits), escape_char='-'):
-    """Escape a string so that it only contains characters in a safe set.
-    Characters outside the safe list will be escaped with _%x_,
-    where %x is the hex value of the character.
-    """
-
-    chars = []
-    for c in to_escape:
-        if c in safe:
-            chars.append(c)
-        else:
-            chars.append(_escape_char(c, escape_char))
-    return u''.join(chars)
-
 
 def get_agave_access_data(spawner):
     """
@@ -189,7 +139,6 @@ def get_user_token_dir(username):
             username)
 
 def get_mounts(spawner):
-    #username is already cleaned by kubespawner
     safe_username = safe_string(spawner.user.name).lower()
     safe_tenant = safe_string(TENANT).lower()
     safe_instance = safe_string(INSTANCE).lower()

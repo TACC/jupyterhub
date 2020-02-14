@@ -8,3 +8,4 @@ RUN pip install oauthenticator agavepy jupyterhub-kubespawner notebook ipdb git+
 ADD taccspawner.py /opt/conda/lib/python3.6/site-packages/jupyterhub/taccspawner.py
 ADD jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py
 ADD agave.py /opt/conda/lib/python3.6/site-packages/oauthenticator/agave.py
+ADD common.py /opt/conda/lib/python3.6/site-packages/jupyterhub/common.py

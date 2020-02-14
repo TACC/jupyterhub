@@ -3,17 +3,7 @@ import os
 
 from agavepy.agave import Agave
 
-def get_config_metadata_name():
-    return 'config.{}.{}.jhub'.format(
-        os.environ.get('TENANT'),
-        os.environ.get('INSTANCE'))
-
-service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
-base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
-ag = Agave(api_server=base_url, token=service_token)
-q={'name': get_config_metadata_name()}
-configs = ag.meta.listMetadata(q=str(q))[0]['value']
-print(configs)
+from jupyterhub.common import CONFIGS
 
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
@@ -108,9 +98,9 @@ c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
 # c.AgaveOAuthenticator.client_id = os.environ['TENANT_CLIENT_ID']
 # c.AgaveOAuthenticator.client_secret = os.environ['TENANT_CLIENT_SECRET']
 
-c.AgaveOAuthenticator.oauth_callback_url = configs['oauth_callback_url']
-c.AgaveOAuthenticator.client_id = configs['agave_client_id']
-c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
+c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
+c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
+c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
 
 
 # c.AgaveOAuthenticator.agave_base_url = os.environ['AGAVE_BASE_URL']
@@ -683,10 +673,10 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  that the interface of the spawner class is not deemed stable across versions,
 #  so using this functionality might cause your JupyterHub upgrades to break.
 #c.Spawner.options_form = traitlets.Undefined
-image_options = configs.get('images')
-if len(image_options) > 1 or configs.get('HPC_available') == 'True':
+image_options = CONFIGS.get('images')
+if len(image_options) > 1 or CONFIGS.get('HPC_available') == 'True':
     options=''
-    if configs.get('HPC_available') == 'True':
+    if CONFIGS.get('HPC_available') == 'True':
         options = '<option value="HPC"> HPC </option>'
     for image in image_options:
         options = options + ' <option value="{}"> {} </option>'.format(image, image)
