@@ -4,25 +4,20 @@ Custom Authenticator to use Agave OAuth with JupyterHub
 
 import json
 import os
-import urllib
 import re
 import time
-
-from tornado.auth import OAuth2Mixin
-from tornado import gen, web
-
-from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient
+import urllib
 
 from jupyterhub.auth import LocalAuthenticator
-from jupyterhub.taccspawner import safe_string
-
+from kubernetes import client
+from tornado import gen, web
+from tornado.auth import OAuth2Mixin
+from tornado.httpclient import HTTPRequest, AsyncHTTPClient
+from tornado.httputil import url_concat
 from traitlets import Set
 
-from .oauth2 import OAuthLoginHandler, OAuthenticator
-
 from jupyterhub.common import TENANT, INSTANCE, CONFIGS, safe_string
-from kubernetes import client
+from .oauth2 import OAuthLoginHandler, OAuthenticator
 
 
 class AgaveMixin(OAuth2Mixin):
@@ -97,7 +92,7 @@ class AgaveOAuthenticator(OAuthenticator):
                           )
         resp = yield http_client.fetch(req)
         resp_json = json.loads(resp.body.decode('utf8', 'replace'))
-        self.log.info('resp_json after /profiles/v2/me:',str(resp_json))
+        self.log.info('resp_json after /profiles/v2/me:', str(resp_json))
         username = resp_json["result"]["username"]
 
         self.ensure_token_dir(username)
@@ -175,12 +170,12 @@ class AgaveOAuthenticator(OAuthenticator):
         body = client.V1ConfigMap(
             data={name: str(d)},
             metadata={
-                'name': '{}-{}'.format(configmap_name_prefix, re.sub('[^A-Za-z0-9]+', '', name)), #remove the . from .agpy to accomodate k8 naming rules
+                'name': '{}-{}'.format(configmap_name_prefix, re.sub('[^A-Za-z0-9]+', '', name)),  # remove the . from .agpy to accomodate k8 naming rules
                 'labels': {'app': configmap_name_prefix, 'tenant': TENANT, 'instance': INSTANCE, 'username': username}
             }
         )
 
-        self.log.info('{}:{}'.format('configmap body',body))
+        self.log.info('{}:{}'.format('configmap body', body))
         try:
             api_response = api_instance.create_namespaced_config_map(namespace, body)
             self.log.info('{} configmap created'.format(name))
@@ -188,7 +183,7 @@ class AgaveOAuthenticator(OAuthenticator):
         except Exception as e:
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 
-class LocalAgaveOAuthenticator(LocalAuthenticator,
-                                   AgaveOAuthenticator):
+
+class LocalAgaveOAuthenticator(LocalAuthenticator, AgaveOAuthenticator):
     """A version that mixes in local system user creation"""
     pass
