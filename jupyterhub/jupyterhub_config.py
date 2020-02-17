@@ -674,9 +674,9 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  so using this functionality might cause your JupyterHub upgrades to break.
 #c.Spawner.options_form = traitlets.Undefined
 image_options = CONFIGS.get('images')
-if len(image_options) > 1 or CONFIGS.get('HPC_available') == 'True':
+if len(image_options) > 1 or CONFIGS.get('hpc_available') == 'True':
     options=''
-    if CONFIGS.get('HPC_available') == 'True':
+    if CONFIGS.get('hpc_available') == 'True':
         options = '<option value="HPC"> HPC </option>'
     for image in image_options:
         options = options + ' <option value="{}"> {} </option>'.format(image, image)
