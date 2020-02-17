@@ -32,8 +32,6 @@ def hook(spawner):
     else:
         spawner.image = spawner.user_options['image'][0]
 
-    spawner.start_timeout = 60*6
-
 
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
