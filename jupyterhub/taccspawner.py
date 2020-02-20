@@ -27,11 +27,20 @@ def hook(spawner):
     spawner.uid = int(spawner.configs.get('uid', spawner.tas_uid))
     spawner.gid = int(spawner.configs.get('gid', spawner.tas_gid))
 
-    if len(spawner.configs.get('images')) == 1:  # only 1 image option
+
+    if len(spawner.configs.get('images')) == 1:  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]
+    elif spawner.user_options['image'][0] == 'HPC':
+        spawner.image = spawner.configs.get('hpc_image')
+        spawner.mem_guarantee = spawner.configs.get('hpc_mem_guarantee')
+        spawner.cpu_guarantee = float(spawner.configs.get('hpc_cpu_guarantee'))
+        return
     else:
         spawner.image = spawner.user_options['image'][0]
 
+    spawner.mem_limit = spawner.configs.get('mem_limit')
+    spawner.cpu_limit = float(spawner.configs.get('cpu_limit'))
+    spawner.start_timeout = 60 * 5
 
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
@@ -165,7 +174,7 @@ def get_mounts(spawner):
 
     template_vars = {
         'username': spawner.user.name,
-        'tenant_id': TENANT,
+        'tenant_id': TENANT, #TODO do we need this?
     }
 
     if hasattr(spawner, 'tas_homedir'):
