@@ -129,7 +129,7 @@ class AgaveOAuthenticator(OAuthenticator):
             json.dump(d, f)
         self.log.info("Saved agavepy cache file to {}".format(os.path.join(self.get_user_token_dir(username), '.agpy')))
         self.log.info("agavepy cache file data: {}".format(d))
-        self.create_configmap(username, '.agpy', d)
+        self.create_configmap(username, '.agpy', json.dumps(d))
 
         # cli file
         d = {'tenantid': tenant_id,
@@ -148,7 +148,7 @@ class AgaveOAuthenticator(OAuthenticator):
             json.dump(d, f)
         self.log.info("Saved CLI cache file to {}".format(os.path.join(self.get_user_token_dir(username), 'current')))
         self.log.info("CLI cache file data: {}".format(d))
-        self.create_configmap(username, 'current', d)
+        self.create_configmap(username, 'current', json.dumps(d))
 
     def create_configmap(self, username, name, d):
         with open('/run/secrets/kubernetes.io/serviceaccount/token') as f:

@@ -164,10 +164,11 @@ def get_mounts(spawner):
     spawner.volume_mounts = [
         {'mountPath': '/etc/.agpy',
          'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
-         'subPath': '.agpy'
+         'subPath': '.agpy',
          },
-        {'mountPath': '/home/jupyter/.agave',
-         'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance)
+        {'mountPath': '/home/jupyter/.agave/current',
+         'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
+         'subPath': 'current',
          },
     ]
     volume_mounts = spawner.configs.get('volume_mounts')
