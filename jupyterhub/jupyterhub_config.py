@@ -3,7 +3,8 @@ import os
 
 from agavepy.agave import Agave
 
-from jupyterhub.common import CONFIGS
+from jupyterhub.common import get_tenant_configs
+CONFIGS = get_tenant_configs()
 
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
@@ -673,15 +674,6 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  that the interface of the spawner class is not deemed stable across versions,
 #  so using this functionality might cause your JupyterHub upgrades to break.
 #c.Spawner.options_form = traitlets.Undefined
-image_options = CONFIGS.get('images')
-if len(image_options) > 1 or CONFIGS.get('hpc_available') == 'True':
-    options=''
-    if CONFIGS.get('hpc_available') == 'True':
-        options = '<option value="HPC"> HPC </option>'
-    for image in image_options:
-        options = options + ' <option value="{}"> {} </option>'.format(image, image)
-        print(options)
-    c.KubeSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
 
 ## Interval (in seconds) on which to poll the spawner for single-user server's
 #  status.
