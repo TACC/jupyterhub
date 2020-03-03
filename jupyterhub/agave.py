@@ -16,9 +16,10 @@ from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 from tornado.httputil import url_concat
 from traitlets import Set
 
-from jupyterhub.common import TENANT, INSTANCE, CONFIGS, safe_string
+from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string
 from .oauth2 import OAuthLoginHandler, OAuthenticator
 
+CONFIGS = get_tenant_configs()
 
 class AgaveMixin(OAuth2Mixin):
     _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
@@ -44,7 +45,7 @@ class AgaveOAuthenticator(OAuthenticator):
         code = handler.get_argument("code", False)
         if not code:
             raise web.HTTPError(400, "oauth callback made without a token")
-        # TODO: Configure the curl_httpclient for tornado
+
         http_client = AsyncHTTPClient()
 
         params = dict(
@@ -97,7 +98,6 @@ class AgaveOAuthenticator(OAuthenticator):
 
         self.ensure_token_dir(username)
         self.save_token(access_token, refresh_token, username, created_at, expires_in, expires_at)
-        # self.create_configmaps(access_token, refresh_token, username, created_at, expires_in, expires_at)
         return username
 
     def ensure_token_dir(self, username):

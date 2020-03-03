@@ -5,7 +5,7 @@ import re
 import requests
 from agavepy.agave import Agave
 
-from jupyterhub.common import TENANT, INSTANCE, CONFIGS, safe_string
+from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string
 
 # TAS configuration:
 # base URL for TAS API.
@@ -15,7 +15,7 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 
 def hook(spawner):
-    spawner.configs = CONFIGS
+    spawner.configs = get_tenant_configs()
 
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
@@ -135,7 +135,7 @@ def get_tas_data(spawner):
     # if the instance has a configured TAS_GID to use we will use that; otherwise,
     # we fall back on using the user's uid as the gid, which is (almost) always safe)
     if not spawner.tas_gid:
-        spawner.tas_gid = spawner.configs.get('gid', spawner.tas_uid)
+        spawner.tas_gid = spawner.configs.get('gid', spawner.tas_uid) #todo old spawner used uid -- design doc says gid, which one?
     spawner.log.info("Setting the following TAS data: uid:{} gid:{} homedir:{}".format(spawner.tas_uid,
                                                                                        spawner.tas_gid,
                                                                                        spawner.tas_homedir))

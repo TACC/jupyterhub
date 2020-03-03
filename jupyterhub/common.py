@@ -17,10 +17,10 @@ def get_config_metadata_name():
     return 'config.{}.{}.jhub'.format(TENANT, INSTANCE)
 
 
-ag = Agave(api_server=base_url, token=service_token)
-q = {'name': get_config_metadata_name()}
-
-CONFIGS = ag.meta.listMetadata(q=str(q))[0]['value']
+def get_tenant_configs():
+    ag = Agave(api_server=base_url, token=service_token)
+    q = {'name': get_config_metadata_name()}
+    return ag.meta.listMetadata(q=str(q))[0]['value']
 
 def safe_string(to_escape, safe = set(string.ascii_lowercase + string.digits), escape_char='-'):
     """Escape a string so that it only contains characters in a safe set.
