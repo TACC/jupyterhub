@@ -146,7 +146,7 @@ def get_tas_data(spawner):
     # if the instance has a configured TAS_GID to use we will use that; otherwise,
     # we fall back on using the user's uid as the gid, which is (almost) always safe)
     if not spawner.tas_gid:
-        spawner.tas_gid = spawner.configs.get('gid', spawner.tas_uid) #todo old spawner used uid -- design doc says gid, which one?
+        spawner.tas_gid = spawner.configs.get('gid', spawner.tas_uid)
     spawner.log.info("Setting the following TAS data: uid:{} gid:{} homedir:{}".format(spawner.tas_uid,
                                                                                        spawner.tas_gid,
                                                                                        spawner.tas_homedir))
@@ -166,7 +166,7 @@ def get_mounts(spawner):
     safe_instance = safe_string(INSTANCE).lower()
     spawner.volumes = [
         {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
-         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance), }
+         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),}
          },
         {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
          'configMap': {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance), }
@@ -190,7 +190,7 @@ def get_mounts(spawner):
     }
 
     if hasattr(spawner, 'tas_homedir'):
-        template_vars['tas_homeDirectory'] = spawner.tas_homedir
+        template_vars['tas_homedir'] = spawner.tas_homedir
 
     if len(volume_mounts):
         for item in volume_mounts:
