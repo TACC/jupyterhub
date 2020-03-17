@@ -194,25 +194,27 @@ def get_mounts(spawner):
 
     if len(volume_mounts):
         for item in volume_mounts:
-            item = item.format(**template_vars)
-            m = item.split(":")
+            path = item['path'].format(**template_vars)
+
             # volume names must consist of lower case alphanumeric characters or '-',
             # and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc',
             # regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')
-            vol_name = re.sub(r'([^a-z0-9-\s]+?)', '', m[2].split('/')[-1].lower())
-            read_only = True if m[3] == 'ro' else False
+            vol_name = re.sub(r'([^a-z0-9-\s]+?)', '', item['mountPath'].split('/')[-1].lower())
+
+            vol = {
+                'path': path,
+                'readOnly': item['readOnly']
+                   }
+            if item['type'] == 'nfs':
+                vol['server'] = item['server']
 
             spawner.volumes.append({
                 'name': vol_name,
-                'nfs': {
-                    'server': m[0],
-                    'path': m[1],
-                    'readOnly': read_only
-                }
+                item['type']: vol
             })
 
             spawner.volume_mounts.append({
-                'mountPath': m[2],
+                'mountPath': item['mountPath'],
                 'name': vol_name
             })
         spawner.log.info(spawner.volumes)
