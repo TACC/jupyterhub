@@ -5,7 +5,7 @@ from agavepy.agave import Agave
 
 from jupyterhub.common import get_tenant_configs
 CONFIGS = get_tenant_configs()
-
+print(CONFIGS)
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
 #------------------------------------------------------------------------------
@@ -102,6 +102,7 @@ c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
 c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
 c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
 c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
+c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
 
 
 # c.AgaveOAuthenticator.agave_base_url = os.environ['AGAVE_BASE_URL']
