@@ -38,6 +38,8 @@ def hook(spawner):
 
     spawner.mem_limit = spawner.configs.get('mem_limit')
     spawner.cpu_limit = float(spawner.configs.get('cpu_limit'))
+    spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
+    spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.start_timeout = 60 * 5
 
 def get_oauth_client(base_url, access_token, refresh_token):
