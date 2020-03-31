@@ -16,7 +16,6 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 def hook(spawner):
     spawner.configs = get_tenant_configs()
-    get_notebook_options(spawner)
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
     get_tas_data(spawner)
@@ -46,16 +45,17 @@ def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
 
 
-def get_notebook_options(spawner):
-    image_options = spawner.configs.get('images')
-    if len(image_options) > 1 or spawner.configs.get('hpc_available') == 'True':
+async def get_notebook_options(spawner):
+    configs = get_tenant_configs()
+    image_options = configs.get('images')
+    if len(image_options) > 1 or configs.get('hpc_available') == 'True':
         options = ''
-        if spawner.configs.get('hpc_available') == 'True':
+        if configs.get('hpc_available') == 'True':
             options = '<option value="HPC"> HPC </option>'
         for image in image_options:
             options = options + ' <option value="{}"> {} </option>'.format(image, image)
             print(options)
-        spawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(
+        return 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(
             options)
 
 

@@ -958,5 +958,7 @@ c.KubeSpawner.delete_stopped_pods = False
 c.KubeSpawner.args = ['--allow-root']
 
 #setup
-from jupyterhub.taccspawner import hook
+from jupyterhub.taccspawner import hook, get_notebook_options
 c.KubeSpawner.pre_spawn_hook = hook
+c.KubeSpawner.options_form = get_notebook_options
+
