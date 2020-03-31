@@ -952,10 +952,10 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #c.CryptKeeper.n_threads = 8
 
 
-# testing
+# debugging
 c.KubeSpawner.debug = True
 c.KubeSpawner.delete_stopped_pods = False
-c.KubeSpawner.args = ['--allow-root']
+# c.KubeSpawner.args = ['--allow-root']
 
 #setup
 from jupyterhub.taccspawner import hook, get_notebook_options
