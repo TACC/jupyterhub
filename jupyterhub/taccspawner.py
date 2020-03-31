@@ -15,6 +15,7 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 
 def hook(spawner):
+    spawner.start_timeout = 60 * 5
     spawner.configs = get_tenant_configs()
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
@@ -25,21 +26,24 @@ def hook(spawner):
     spawner.uid = int(spawner.configs.get('uid', spawner.tas_uid))
     spawner.gid = int(spawner.configs.get('gid', spawner.tas_gid))
 
-    if len(spawner.configs.get('images')) == 1:  # only 1 image option, so we skipped the form
+    spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
+    spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
+
+    if len(spawner.configs.get('images')) == 1 and spawner.configs.get('hpc_available') == 'False':  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]
     elif spawner.user_options['image'][0] == 'HPC':
         spawner.image = spawner.configs.get('hpc_image')
         spawner.mem_guarantee = spawner.configs.get('hpc_mem_guarantee')
         spawner.cpu_guarantee = float(spawner.configs.get('hpc_cpu_guarantee'))
+        spawner.log.info('HPC image: {} with memory: {} and cpu {}'. format(spawner.image, spawner.mem_guarantee,
+                                                                            spawner.cpu_guarantee))
         return
     else:
         spawner.image = spawner.user_options['image'][0]
 
     spawner.mem_limit = spawner.configs.get('mem_limit')
     spawner.cpu_limit = float(spawner.configs.get('cpu_limit'))
-    spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
-    spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
-    spawner.start_timeout = 60 * 5
+
 
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
@@ -168,7 +172,7 @@ def get_mounts(spawner):
     safe_instance = safe_string(INSTANCE).lower()
     spawner.volumes = [
         {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
-         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),}
+         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance), }
          },
         {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
          'configMap': {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance), }
@@ -188,7 +192,7 @@ def get_mounts(spawner):
 
     template_vars = {
         'username': spawner.user.name,
-        'tenant_id': TENANT, #TODO do we need this?
+        'tenant_id': TENANT,  # TODO do we need this?
     }
 
     if hasattr(spawner, 'tas_homedir'):
