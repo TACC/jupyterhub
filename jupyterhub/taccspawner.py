@@ -36,7 +36,7 @@ def hook(spawner):
         # spawner.mem_guarantee = spawner.configs.get('hpc_mem_guarantee')
         # spawner.cpu_guarantee = float(spawner.configs.get('hpc_cpu_guarantee'))
         # spawner.log.info('HPC image: {} with memory: {} and cpu {}'. format(spawner.image, spawner.mem_guarantee,
-                                                                            spawner.cpu_guarantee))
+        #                                                                     spawner.cpu_guarantee))
         return
     else:
         spawner.image = spawner.user_options['image'][0]
