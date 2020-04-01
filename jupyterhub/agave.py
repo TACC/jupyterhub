@@ -167,15 +167,25 @@ class AgaveOAuthenticator(OAuthenticator):
         safe_tenant = safe_string(TENANT).lower()
         safe_instance = safe_string(INSTANCE).lower()
         configmap_name_prefix = '{}-{}-{}-jhub'.format(safe_username, safe_tenant, safe_instance)
+        configmap_name = '{}-{}'.format(configmap_name_prefix, re.sub('[^A-Za-z0-9]+', '', name))  # remove the . from .agpy to accomodate k8 naming rules
+
         body = client.V1ConfigMap(
             data={name: str(d)},
             metadata={
-                'name': '{}-{}'.format(configmap_name_prefix, re.sub('[^A-Za-z0-9]+', '', name)),  # remove the . from .agpy to accomodate k8 naming rules
+                'name': configmap_name,
                 'labels': {'app': configmap_name_prefix, 'tenant': TENANT, 'instance': INSTANCE, 'username': username}
             }
         )
 
         self.log.info('{}:{}'.format('configmap body', body))
+
+        try: # delete any current configmaps to ensure no stale tokens
+            api_response = api_instance.delete_namespaced_config_map(configmap_name, namespace)
+            self.log.info('{} configmap deleted'.format(configmap_name))
+            print(str(api_response))
+        except Exception as e:
+            print("Exception when calling CoreV1Api->delete_namespaced_config_map: %s\n" % e)
+
         try:
             api_response = api_instance.create_namespaced_config_map(namespace, body)
             self.log.info('{} configmap created'.format(name))
