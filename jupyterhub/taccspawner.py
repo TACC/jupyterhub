@@ -170,21 +170,59 @@ def get_mounts(spawner):
     safe_username = safe_string(spawner.user.name).lower()
     safe_tenant = safe_string(TENANT).lower()
     safe_instance = safe_string(INSTANCE).lower()
+    agpy_safe_name = '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance)
+    current_safe_name = '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance)
+
+    spawner.init_containers = [{
+        "name": "rw-configmap-workaround",
+        "image": "busybox",
+        "command": ["/bin/sh", "-c", "cp -r /agave_data/.agpy /agave_data_rw/.agpy && cp -r /agave_data/current /agave_data_rw/current && ls -lah /agave_data_rw && cat /agave_data_rw/current/current && chmod -R 777 /agave_data_rw && ls -lah /agave_data_rw"],
+        "volumeMounts": [
+            {
+                'mountPath': '/agave_data/.agpy',
+                'name': '{}-configmap'.format(agpy_safe_name),
+                'subPath': '.agpy',
+            },
+            {
+                'mountPath': '/agave_data/current',
+                'name': '{}-configmap'.format(current_safe_name),
+                'subPath': 'current',
+            },
+            {
+                'mountPath': '/agave_data_rw/.agpy',
+                'name': agpy_safe_name,
+                'subPath': '.agpy',
+            },
+            {
+                'mountPath': '/agave_data_rw/current',
+                'name': current_safe_name,
+                'subPath': 'current',
+            },
+
+        ]
+    }]
+
     spawner.volumes = [
-        {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
-         'configMap': {'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance), }
+        {'name': '{}-configmap'.format(agpy_safe_name),
+         'configMap': {'name': agpy_safe_name, 'defaultMode':0o0777 }
          },
-        {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
-         'configMap': {'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance), }
+        {'name': '{}-configmap'.format(current_safe_name),
+         'configMap': {'name': current_safe_name, 'defaultMode':0o0777 }
+         },
+        {'name': agpy_safe_name,
+         'emptyDir': {},
+         },
+        {'name': current_safe_name,
+         'emptyDir': {},
          },
     ]
     spawner.volume_mounts = [
-        {'mountPath': '/etc/.agpy',
-         'name': '{}-{}-{}-jhub-agpy'.format(safe_username, safe_tenant, safe_instance),
+        {'mountPath': '/etc',
+         'name': agpy_safe_name,
          'subPath': '.agpy',
          },
-        {'mountPath': '/home/jupyter/.agave/current',
-         'name': '{}-{}-{}-jhub-current'.format(safe_username, safe_tenant, safe_instance),
+        {'mountPath': '/home/jupyter/.agave',
+         'name': current_safe_name,
          'subPath': 'current',
          },
     ]
