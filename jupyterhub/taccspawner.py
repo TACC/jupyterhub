@@ -217,9 +217,9 @@ def get_mounts(spawner):
          },
     ]
     spawner.volume_mounts = [
-        {'mountPath': '/etc',
+        {'mountPath': '/etc/.agpy',
          'name': agpy_safe_name,
-         'subPath': '.agpy',
+         'subPath': '.agpy/.agpy',
          },
         {'mountPath': '/home/jupyter/.agave',
          'name': current_safe_name,
