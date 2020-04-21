@@ -1,11 +1,13 @@
+import ast
+import humanfriendly
 import json
 import os
 import re
-
 import requests
+
 from agavepy.agave import Agave
 
-from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string
+from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string, get_user_configs
 
 # TAS configuration:
 # base URL for TAS API.
@@ -29,6 +31,17 @@ def hook(spawner):
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
 
+    user_configs = get_user_configs(spawner.user.name)
+    tenant_mem_limit = spawner.configs.get('mem_limit')
+    mem_limits = {tenant_mem_limit: humanfriendly.parse_size(tenant_mem_limit)}
+    cpu_limits = [spawner.configs.get('cpu_limit')]
+    for item in user_configs:
+        mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
+        cpu_limits.append(item['value']['cpu_limit'])
+    print('*******{}***{}'.format(mem_limits, cpu_limits))
+    spawner.mem_limit = max(mem_limits, key=mem_limits.get)
+    spawner.cpu_limit = float(max(cpu_limits))
+
     if len(spawner.configs.get('images')) == 1 and spawner.configs.get('hpc_available') == 'False':  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]
     elif spawner.user_options['image'][0] == 'HPC':
@@ -39,10 +52,21 @@ def hook(spawner):
         #                                                                     spawner.cpu_guarantee))
         return
     else:
-        spawner.image = spawner.user_options['image'][0]
+        image = ast.literal_eval(spawner.user_options['image'][0])
+        spawner.log.info('form select: {}'.format(image))
+        spawner.image = image['name']
 
-    spawner.mem_limit = spawner.configs.get('mem_limit')
-    spawner.cpu_limit = float(spawner.configs.get('cpu_limit'))
+        if image.get('extra_pod_config'):
+            merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
+        if image.get('extra_container_config'):
+            merge_configs(image['extra_container_config'], spawner.extra_pod_config)
+
+
+def merge_configs(x, y):
+    merged_pod_config = {**x, **y}
+    for key, value in merged_pod_config.items():
+        if key in x and key in y:
+            merged_pod_config[key].update(x[key])
 
 
 def get_oauth_client(base_url, access_token, refresh_token):
@@ -52,14 +76,22 @@ def get_oauth_client(base_url, access_token, refresh_token):
 async def get_notebook_options(spawner):
     configs = get_tenant_configs()
     image_options = configs.get('images')
+    #get user specific options
+    user_configs = get_user_configs(spawner.user.name)
+
+    for item in user_configs:
+        for image in item['value']['images']:
+            image_options.append(image)
+    image_options = sorted(image_options, key=lambda d: d['name'])
+
     if len(image_options) > 1 or configs.get('hpc_available') == 'True':
         options = ''
         if configs.get('hpc_available') == 'True':
             options = '<option value="HPC"> HPC </option>'
         for image in image_options:
-            options = options + ' <option value="{}"> {} </option>'.format(image, image)
+            options = options + ' <option value="{}"> {} </option>'.format(image, image['name'])
             print(options)
-        return 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(
+        return 'Choose an image: <select name="image" size="10"> {} </select>'.format(
             options)
 
 
