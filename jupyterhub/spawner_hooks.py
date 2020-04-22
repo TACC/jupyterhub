@@ -30,32 +30,26 @@ def hook(spawner):
 
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
+    spawner.log.info('😱 {}'.format(spawner.user_options))
 
-    user_configs = get_user_configs(spawner.user.name)
-    tenant_mem_limit = spawner.configs.get('mem_limit')
-    mem_limits = {tenant_mem_limit: humanfriendly.parse_size(tenant_mem_limit)}
-    cpu_limits = [spawner.configs.get('cpu_limit')]
-    for item in user_configs:
-        mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
-        cpu_limits.append(item['value']['cpu_limit'])
-    print('*******{}***{}'.format(mem_limits, cpu_limits))
-    spawner.mem_limit = max(mem_limits, key=mem_limits.get)
-    spawner.cpu_limit = float(max(cpu_limits))
+    if not spawner.user_options.get('hpc'):
+        user_configs = get_user_configs(spawner.user.name)
+        tenant_mem_limit = spawner.configs.get('mem_limit')
+        mem_limits = {tenant_mem_limit: humanfriendly.parse_size(tenant_mem_limit)}
+        cpu_limits = [spawner.configs.get('cpu_limit')]
+        for item in user_configs:
+            mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
+            cpu_limits.append(item['value']['cpu_limit'])
+        print('*******{}***{}'.format(mem_limits, cpu_limits))
+        spawner.mem_limit = max(mem_limits, key=mem_limits.get)
+        spawner.cpu_limit = float(max(cpu_limits))
 
     if len(spawner.configs.get('images')) == 1 and spawner.configs.get('hpc_available') == 'False':  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]
-    elif spawner.user_options['image'][0] == 'HPC':
-        spawner.image = spawner.configs.get('hpc_image')
-        # spawner.mem_guarantee = spawner.configs.get('hpc_mem_guarantee')
-        # spawner.cpu_guarantee = float(spawner.configs.get('hpc_cpu_guarantee'))
-        # spawner.log.info('HPC image: {} with memory: {} and cpu {}'. format(spawner.image, spawner.mem_guarantee,
-        #                                                                     spawner.cpu_guarantee))
-        return
     else:
         image = ast.literal_eval(spawner.user_options['image'][0])
         spawner.log.info('form select: {}'.format(image))
         spawner.image = image['name']
-
         if image.get('extra_pod_config'):
             merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
         if image.get('extra_container_config'):
@@ -86,13 +80,35 @@ async def get_notebook_options(spawner):
 
     if len(image_options) > 1 or configs.get('hpc_available') == 'True':
         options = ''
-        if configs.get('hpc_available') == 'True':
-            options = '<option value="HPC"> HPC </option>'
+        # if configs.get('hpc_available') == 'True':
+        #     options = '<option value="HPC"> HPC </option>'
         for image in image_options:
-            options = options + ' <option value="{}"> {} </option>'.format(image, image['name'])
-            print(options)
-        return 'Choose an image: <select name="image" size="10"> {} </select>'.format(
-            options)
+            spawner.log.info(image)
+            options = options + " <option value='{}'> {} </option>".format(json.dumps(image), image['name'])
+        print(options)
+
+        js= '''(function hpc(){
+                var select_element = document.getElementById('image'); 
+                var value = select_element.value || select_element.options[select_element.selectedIndex].value;
+                var value = JSON.parse(value);
+                if (value['hpc_available']) {
+                    document.getElementById('hpc').checked = false;
+                    document.getElementById('hpc').style.display = 'inline-block';
+                    document.getElementById('hpc_label').style.display = 'inline-block';
+                } else {
+                    document.getElementById('hpc').checked = false;
+                    document.getElementById('hpc').style.display = 'none';
+                    document.getElementById('hpc_label').style.display = 'none';
+                }
+            })()'''
+
+        select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
+
+        hpc='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+            <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
+            '''
+
+        return '{}{}'.format(select_images, hpc)
 
 
 def get_agave_access_data(spawner):
