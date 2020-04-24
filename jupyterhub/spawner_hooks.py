@@ -6,8 +6,8 @@ import re
 import requests
 
 from agavepy.agave import Agave
-
 from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string, get_user_configs
+from tornado import web
 
 # TAS configuration:
 # base URL for TAS API.
@@ -19,6 +19,11 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 def hook(spawner):
     spawner.start_timeout = 60 * 5
     spawner.configs = get_tenant_configs()
+    spawner.user_configs = get_user_configs(spawner.user.name)
+    spawner.log.info('👻 {}'.format(spawner.configs))
+    spawner.log.info('👽 {}'.format(spawner.user_configs))
+    spawner.log.info('type {} 😱 {}'.format(type(spawner.user_options),spawner.user_options))
+
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
     get_tas_data(spawner)
@@ -30,25 +35,46 @@ def hook(spawner):
 
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
-    spawner.log.info('😱 {}'.format(spawner.user_options))
+
+    #verify form data
+    image_options = spawner.configs.get('images')
+    for item in spawner.user_configs:
+        for image in item['value']['images']:
+            image_options.append(image)
+
+    image = ast.literal_eval(spawner.user_options['image'][0])
+    try:
+        spawner.log.info(
+            'Checking against these options from metadata: {} user options: image-{} hpc-{}'.format(
+                image_options, image, spawner.user_options.get('hpc')))
+        allowed_options = next(option for option in image_options if option['name'] == image['name'])
+        if spawner.user_options.get('hpc'):
+            if not eval(spawner.configs.get('hpc_available')):
+                spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
+                raise web.HTTPError(403)
+            else:
+                if not eval(allowed_options.get('hpc_available', 'False')):
+                    spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
+                    raise web.HTTPError(403)
+    except Exception as e:
+        print('😡😡😡 {}'.format(e))
+        spawner.log.error('image {} is not available. {} -- {}'.format(image['name'], spawner.user.name, spawner.user_options))
+        raise web.HTTPError(403)
 
     if not spawner.user_options.get('hpc'):
-        user_configs = get_user_configs(spawner.user.name)
         tenant_mem_limit = spawner.configs.get('mem_limit')
         mem_limits = {tenant_mem_limit: humanfriendly.parse_size(tenant_mem_limit)}
         cpu_limits = [spawner.configs.get('cpu_limit')]
-        for item in user_configs:
+        for item in spawner.user_configs:
             mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
             cpu_limits.append(item['value']['cpu_limit'])
-        print('*******{}***{}'.format(mem_limits, cpu_limits))
+        print('available limits******* mem: {}*** cpu:{}'.format(mem_limits, cpu_limits))
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
 
-    if len(spawner.configs.get('images')) == 1 and spawner.configs.get('hpc_available') == 'False':  # only 1 image option, so we skipped the form
+    if len(spawner.configs.get('images')) == 1 and not eval(spawner.configs.get('hpc_available')):  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]
     else:
-        image = ast.literal_eval(spawner.user_options['image'][0])
-        spawner.log.info('form select: {}'.format(image))
         spawner.image = image['name']
         if image.get('extra_pod_config'):
             merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
@@ -68,20 +94,18 @@ def get_oauth_client(base_url, access_token, refresh_token):
 
 
 async def get_notebook_options(spawner):
-    configs = get_tenant_configs()
-    image_options = configs.get('images')
-    #get user specific options
-    user_configs = get_user_configs(spawner.user.name)
+    spawner.configs = get_tenant_configs()
+    spawner.user_configs = get_user_configs(spawner.user.name)
 
-    for item in user_configs:
+    image_options = spawner.configs.get('images')
+
+    for item in spawner.user_configs:
         for image in item['value']['images']:
             image_options.append(image)
     image_options = sorted(image_options, key=lambda d: d['name'])
 
-    if len(image_options) > 1 or configs.get('hpc_available') == 'True':
+    if len(image_options) > 1 or eval(spawner.configs.get('hpc_available')):
         options = ''
-        # if configs.get('hpc_available') == 'True':
-        #     options = '<option value="HPC"> HPC </option>'
         for image in image_options:
             spawner.log.info(image)
             options = options + " <option value='{}'> {} </option>".format(json.dumps(image), image['name'])
@@ -295,7 +319,7 @@ def get_mounts(spawner):
 
             vol = {
                 'path': path,
-                'readOnly': item['readOnly']
+                'readOnly': eval(item['readOnly'])
                    }
             if item['type'] == 'nfs':
                 vol['server'] = item['server']
@@ -309,8 +333,8 @@ def get_mounts(spawner):
                 'mountPath': item['mountPath'],
                 'name': vol_name
             })
-        spawner.log.info(spawner.volumes)
-        spawner.log.info(spawner.volume_mounts)
+        spawner.log.info('volumes: {}'.format(spawner.volumes))
+        spawner.log.info('volume_mounts: {}'.format(spawner.volume_mounts))
 
 
 def get_projects(spawner):
