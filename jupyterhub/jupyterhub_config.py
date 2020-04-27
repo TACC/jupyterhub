@@ -87,27 +87,12 @@ print(CONFIGS)
 c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
 # c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
 
-# c.AgaveOAuthenticator.service_token = os.environ['AGAVE_SERVICE_TOKEN']
-# c.AgaveOAuthenticator.service_client_id = os.environ['AGAVE_CLIENT_ID']
-# c.AgaveOAuthenticator.service_client_secret = os.environ['AGAVE_CLIENT_SECRET']
-# c.AgaveOAuthenticator.service_base_url = os.environ['AGAVE_BASE_URL']
-# c.AgaveOAuthenticator.tenant = os.environ['TENANT']
-# c.AgaveOAuthenticator.instance = os.environ['INSTANCE']
-
-#if using env vars?
-# c.AgaveOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
-# c.AgaveOAuthenticator.client_id = os.environ['TENANT_CLIENT_ID']
-# c.AgaveOAuthenticator.client_secret = os.environ['TENANT_CLIENT_SECRET']
-
 c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
 c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
 c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
 c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
 
 
-# c.AgaveOAuthenticator.agave_base_url = os.environ['AGAVE_BASE_URL']
-
-# c.AgaveMixin.agave_base_url = os.environ['AGAVE_BASE_URL']
 
 ## The base URL of the entire application.
 #
