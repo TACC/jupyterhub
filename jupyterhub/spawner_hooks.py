@@ -22,7 +22,7 @@ def hook(spawner):
     spawner.user_configs = get_user_configs(spawner.user.name)
     spawner.log.info('👻 {}'.format(spawner.configs))
     spawner.log.info('👽 {}'.format(spawner.user_configs))
-    spawner.log.info('type {} 😱 {}'.format(type(spawner.user_options),spawner.user_options))
+    spawner.log.info('😱 {}'.format(type(spawner.user_options),spawner.user_options))
 
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
@@ -36,30 +36,38 @@ def hook(spawner):
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
 
-    #verify form data
-    image_options = spawner.configs.get('images')
-    for item in spawner.user_configs:
-        for image in item['value']['images']:
-            image_options.append(image)
+    if len(spawner.configs.get('images')) == 1 and not eval(spawner.configs.get('hpc_available')):  # only 1 image option, so we skipped the form
+        spawner.image = spawner.configs.get('images')[0]['name']
+    else:
+        #verify form data
+        image_options = spawner.configs.get('images')
+        for item in spawner.user_configs:
+            for image in item['value']['images']:
+                image_options.append(image)
 
-    image = ast.literal_eval(spawner.user_options['image'][0])
-    try:
-        spawner.log.info(
-            'Checking against these options from metadata: {} user options: image-{} hpc-{}'.format(
-                image_options, image, spawner.user_options.get('hpc')))
-        allowed_options = next(option for option in image_options if option['name'] == image['name'])
-        if spawner.user_options.get('hpc'):
-            if not eval(spawner.configs.get('hpc_available')):
-                spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
-                raise web.HTTPError(403)
-            else:
-                if not eval(allowed_options.get('hpc_available', 'False')):
+        image = ast.literal_eval(spawner.user_options['image'][0])
+        try:
+            spawner.log.info(
+                'Checking user options: image-{} hpc-{} against metadata: {}'.format(
+                    image, spawner.user_options.get('hpc'), image_options))
+            allowed_options = next(option for option in image_options if option['name'] == image['name'])
+            if spawner.user_options.get('hpc'):
+                if not eval(spawner.configs.get('hpc_available')):
                     spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
                     raise web.HTTPError(403)
-    except Exception as e:
-        print('😡😡😡 {}'.format(e))
-        spawner.log.error('image {} is not available. {} -- {}'.format(image['name'], spawner.user.name, spawner.user_options))
-        raise web.HTTPError(403)
+                else:
+                    if not eval(allowed_options.get('hpc_available', 'False')):
+                        spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
+                        raise web.HTTPError(403)
+        except Exception as e:
+            spawner.log.error('image {} is not available. user:{} -- user options:{}. got an error:{}'.format(image['name'], spawner.user.name, spawner.user_options, e))
+            raise web.HTTPError(403)
+
+        spawner.image = image['name']
+        if image.get('extra_pod_config'):
+            merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
+        if image.get('extra_container_config'):
+            merge_configs(image['extra_container_config'], spawner.extra_pod_config)
 
     if not spawner.user_options.get('hpc'):
         tenant_mem_limit = spawner.configs.get('mem_limit')
@@ -68,18 +76,9 @@ def hook(spawner):
         for item in spawner.user_configs:
             mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
             cpu_limits.append(item['value']['cpu_limit'])
-        print('available limits******* mem: {}*** cpu:{}'.format(mem_limits, cpu_limits))
+        spawner.log.info('available limits -- mem: {} cpu:{}'.format(mem_limits, cpu_limits))
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
-
-    if len(spawner.configs.get('images')) == 1 and not eval(spawner.configs.get('hpc_available')):  # only 1 image option, so we skipped the form
-        spawner.image = spawner.configs.get('images')[0]
-    else:
-        spawner.image = image['name']
-        if image.get('extra_pod_config'):
-            merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
-        if image.get('extra_container_config'):
-            merge_configs(image['extra_container_config'], spawner.extra_pod_config)
 
 
 def merge_configs(x, y):
@@ -107,11 +106,8 @@ async def get_notebook_options(spawner):
     if len(image_options) > 1 or eval(spawner.configs.get('hpc_available')):
         options = ''
         for image in image_options:
-            spawner.log.info(image)
             options = options + " <option value='{}'> {} </option>".format(json.dumps(image), image['name'])
-        print(options)
-
-        js= '''(function hpc(){
+        js = '''(function hpc(){
                 var select_element = document.getElementById('image'); 
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                 var value = JSON.parse(value);
@@ -125,13 +121,10 @@ async def get_notebook_options(spawner):
                     document.getElementById('hpc_label').style.display = 'none';
                 }
             })()'''
-
         select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
-
-        hpc='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+        hpc ='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
             <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
             '''
-
         return '{}{}'.format(select_images, hpc)
 
 
