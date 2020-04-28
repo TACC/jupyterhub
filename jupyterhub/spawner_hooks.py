@@ -18,8 +18,6 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 def hook(spawner):
     spawner.start_timeout = 60 * 5
-    spawner.configs = get_tenant_configs()
-    spawner.user_configs = get_user_configs(spawner.user.name)
     spawner.log.info('👻 {}'.format(spawner.configs))
     spawner.log.info('👽 {}'.format(spawner.user_configs))
     spawner.log.info('😱 {}'.format(type(spawner.user_options),spawner.user_options))
@@ -36,7 +34,7 @@ def hook(spawner):
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
 
-    if len(spawner.configs.get('images')) == 1 and not eval(spawner.configs.get('hpc_available')):  # only 1 image option, so we skipped the form
+    if len(spawner.configs.get('images')) == 1 and not spawner.hpc_available:  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]['name']
     else:
         #verify form data
@@ -52,15 +50,12 @@ def hook(spawner):
                     image, spawner.user_options.get('hpc'), image_options))
             allowed_options = next(option for option in image_options if option['name'] == image['name'])
             if spawner.user_options.get('hpc'):
-                if not eval(spawner.configs.get('hpc_available')):
-                    spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
+                if not eval(allowed_options.get('hpc_available', 'False')):
+                    spawner.log.error('hpc is not available for this image. {} -- {}'.format(spawner.user.name, allowed_options))
                     raise web.HTTPError(403)
-                else:
-                    if not eval(allowed_options.get('hpc_available', 'False')):
-                        spawner.log.error('hpc is not available. {} -- {}'.format(spawner.user.name, spawner.user_options))
-                        raise web.HTTPError(403)
         except Exception as e:
-            spawner.log.error('image {} is not available. user:{} -- user options:{}. got an error:{}'.format(image['name'], spawner.user.name, spawner.user_options, e))
+            spawner.log.error('{} user options not allowed. selected options {}. allowed options {}. got an error:{}'
+                              .format(spawner.user.name, spawner.user_options, image_options, e))
             raise web.HTTPError(403)
 
         spawner.image = image['name']
@@ -101,9 +96,11 @@ async def get_notebook_options(spawner):
     for item in spawner.user_configs:
         for image in item['value']['images']:
             image_options.append(image)
+            if eval(image.get('hpc_available', 'False')):
+                spawner.hpc_available = True
     image_options = sorted(image_options, key=lambda d: d['name'])
 
-    if len(image_options) > 1 or eval(spawner.configs.get('hpc_available')):
+    if len(image_options) > 1 or spawner.hpc_available:
         options = ''
         for image in image_options:
             options = options + " <option value='{}'> {} </option>".format(json.dumps(image), image['name'])
