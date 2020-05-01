@@ -118,11 +118,14 @@ async def get_notebook_options(spawner):
                     document.getElementById('hpc_label').style.display = 'none';
                 }
             })()'''
-        select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
-        hpc ='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
-            <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
-            '''
-        return '{}{}'.format(select_images, hpc)
+        if spawner.hpc_available:
+            select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
+            hpc ='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+                <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
+                '''
+            return '{}{}'.format(select_images, hpc)
+        else:
+            return '<select id="image" name="image" size="10"> {} </select>'.format(options)
 
 
 def get_agave_access_data(spawner):
