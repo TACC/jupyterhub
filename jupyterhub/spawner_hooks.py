@@ -98,6 +98,14 @@ async def get_notebook_options(spawner):
             image_options.append(image)
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
+
+    if not hasattr(spawner, 'hpc_available'): #only looped through user options -- check the tenant options for hpc
+        for image in spawner.configs.get('images'):
+            if eval(image.get('hpc_available', 'False')):
+                spawner.hpc_available = True
+                break
+        spawner.hpc_available = False
+
     image_options = sorted(image_options, key=lambda d: d['name'])
 
     if len(image_options) > 1 or spawner.hpc_available:
