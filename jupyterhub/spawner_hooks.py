@@ -104,7 +104,7 @@ async def get_notebook_options(spawner):
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
                 break
-        spawner.hpc_available = False
+            spawner.hpc_available = False
 
     image_options = sorted(image_options, key=lambda d: d['name'])
 
