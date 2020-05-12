@@ -1,9 +1,8 @@
 #replace these
 url = 'https://designsafe.jupyterhub.staging.tacc.cloud/'
 users = [
-{'username':'test1', 'password': 'testpw'},
-{'username':'test2', 'password': 'testpw'},
-{'username':'test3', 'password': 'testpw'},
+('test1', 'p@ssw0rd'),
+('test2', 'p@ssw0rd'),
 ]
 
 import os
@@ -90,7 +89,11 @@ def get_more_info(driver, user):
             pass
 
 
-for user in users:
+for account in users:
+    user = {
+        'username':account[0],
+        'password':account[1],
+    }
     driver = webdriver.Chrome('{}/chromedriver'.format(os.path.dirname(os.path.realpath(__file__))), options=chrome_options)
     driver.get(url)
     nb_status = start_notebook(driver, user)
