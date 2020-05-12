@@ -20,6 +20,7 @@ def get_config_metadata_name():
 def get_tenant_configs():
     ag = Agave(api_server=base_url, token=service_token)
     q = {'name': get_config_metadata_name()}
+    print('tenant query: {}'.format(q))
     return ag.meta.listMetadata(q=str(q))[0]['value']
 
 def get_user_configs(username):
@@ -27,6 +28,7 @@ def get_user_configs(username):
     q = {'value.user': username, 'value.tenant': TENANT}
     if INSTANCE != 'dev':
         q['value.instance'] = {'$ne':'dev'}
+    print('user query: {}'.format(q))
     return ag.meta.listMetadata(q=str(q))
 
 def safe_string(to_escape, safe = set(string.ascii_lowercase + string.digits), escape_char='-'):
