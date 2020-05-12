@@ -20,7 +20,7 @@ def hook(spawner):
     spawner.start_timeout = 60 * 5
     spawner.log.info('👻 {}'.format(spawner.configs))
     spawner.log.info('👽 {}'.format(spawner.user_configs))
-    spawner.log.info('😱 {}'.format(type(spawner.user_options),spawner.user_options))
+    spawner.log.info('😱 {}'.format(spawner.user_options))
 
     get_agave_access_data(spawner)
     spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
@@ -74,6 +74,12 @@ def hook(spawner):
         spawner.log.info('available limits -- mem: {} cpu:{}'.format(mem_limits, cpu_limits))
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
+        #Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
+        spawner.mem_guarantee = '.001K'
+        spawner.cpu_guarantee = float(0.001)
+
+    for attr in dir(spawner):
+        print("obj.%s = %r" % (attr, getattr(spawner, attr)))
 
 
 def merge_configs(x, y):
