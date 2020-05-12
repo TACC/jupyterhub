@@ -48,27 +48,17 @@ def submit_form(driver):
     try:
         select = Select(driver.find_element_by_name('image'))
         select.select_by_index('0')
-        driver.find_element_by_xpath("/html/body/div[1]/div[2]/form/input").click()
+        submit_button = driver.find_element_by_xpath("/html/body/div[1]/div[2]/form/input")
+        submit_button.click()
         WebDriverWait(driver, 100).until(
-            EC.presence_of_element_located((By.ID, 'progress-message')))
-    except NoSuchElementException as e:
-        try:
-            driver.find_element_by_id('refresh_notebook_list')
-            print('{} notebook already running'.format(user['username']))
-            return 'RUNNING'
-        except NoSuchElementException as e:
-            print('there is no options form'.format(user['username']))
-            pass
+            EC.staleness_of(submit_button))
+    except TimeoutException as e:
+        print('What happened here {} '.format(driver.page_source))
+        driver.find_element_by_id('refresh_notebook_list')
         pass
-    # except TimeoutException as e:
-    #     driver.find_element_by_id('refresh_notebook_list')
-    #     print('What happened here {} '.format(driver.page_source))
-    #     pass
 
 def get_more_info(driver, user):
     try:
-        # WebDriverWait(driver, 400).until(
-        #     EC.text_to_be_present_in_element((By.ID, ''), 'Spawn failed'))
         WebDriverWait(driver, 280).until(
             EC.presence_of_element_located((By.ID, 'refresh_notebook_list')))
         print('{} notebook spawned successfully'.format(user['username']))
