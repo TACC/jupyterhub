@@ -62,6 +62,7 @@ def get_more_info(driver, user):
             EC.presence_of_element_located((By.ID, 'refresh_notebook_list')))
         print('{} notebook spawned successfully'.format(user['username']))
     except TimeoutException as e:  # notebook didn't spin up
+        print('What happened here {} '.format(driver.page_source))
         with open('/run/secrets/kubernetes.io/serviceaccount/token') as f:
             token = f.read()
         with open('/run/secrets/kubernetes.io/serviceaccount/namespace') as f:
