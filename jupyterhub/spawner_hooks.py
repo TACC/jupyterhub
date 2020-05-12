@@ -78,9 +78,6 @@ def hook(spawner):
         spawner.mem_guarantee = '.001K'
         spawner.cpu_guarantee = float(0.001)
 
-    for attr in dir(spawner):
-        print("obj.%s = %r" % (attr, getattr(spawner, attr)))
-
 
 def merge_configs(x, y):
     merged_pod_config = {**x, **y}
