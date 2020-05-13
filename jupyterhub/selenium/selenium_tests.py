@@ -22,10 +22,6 @@ chrome_options.add_argument('--headless')
 chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
 
-def start_notebook(driver, user):
-    login(driver, user)
-    return submit_form(driver)
-
 
 def login(driver, user):
     driver.find_element_by_xpath("/html/body/div[1]/div/a").click()
@@ -41,7 +37,9 @@ def login(driver, user):
     try:
         driver.find_element_by_id("approveAlways").click()
     except NoSuchElementException as e:
+        # print('{} Is there an agave profile info request page? {} {} '.format(user['username'],e,driver.page_source))
         pass
+
 
 def submit_form(driver):
     try:
@@ -53,8 +51,7 @@ def submit_form(driver):
             EC.staleness_of(submit_button))
     except TimeoutException as e:
         print('What happened here {} '.format(driver.page_source))
-        driver.find_element_by_id('refresh_notebook_list')
-        pass
+
 
 def get_more_info(driver, user):
     try:
@@ -80,14 +77,12 @@ def get_more_info(driver, user):
             pprint('😡 read_namespaced_pod {}'.format(str(api_response)))
         except Exception as e:
             pprint("Exception when calling CoreV1Api->read_namespaced_pod: %s\n" % e)
-            pass
 
         try:
             api_response = api_instance.read_namespaced_pod_log('jupyter-{}'.format(user['username']), namespace)
             pprint('😡 {} read_namespaced_pod_log'.format(str(api_response)))
         except Exception as e:
             pprint("Exception when calling CoreV1Api->read_namespaced_pod_log: %s\n" % e)
-            pass
 
 
 for account in users:
@@ -97,8 +92,15 @@ for account in users:
     }
     driver = webdriver.Chrome('{}/chromedriver'.format(os.path.dirname(os.path.realpath(__file__))), options=chrome_options)
     driver.get(url)
-    nb_status = start_notebook(driver, user)
-    if nb_status != 'RUNNING':
-        get_more_info(driver, user)
-    driver.find_element_by_id("logout").click()
+    login(driver, user)
+    try:
+        submit_form(driver)
+    except NoSuchElementException as e:
+        try:
+            driver.find_element_by_id('refresh_notebook_list')
+            print("{}'s notebook is already running".format(user['username']))
+            continue
+        except Exception as e:
+            print('😱{} {} What happened here {}'.format(user['username'], e, driver.page_source))
+    get_more_info(driver, user)
     driver.quit()
