@@ -100,7 +100,9 @@ for account in users:
             driver.find_element_by_id('refresh_notebook_list')
             print("{}'s notebook is already running".format(user['username']))
             continue
-        except Exception as e:
-            print('😱{} {} What happened here {}'.format(user['username'], e, driver.page_source))
+        except NoSuchElementException as e: #there's no options form
+            print("{} has no options form".format(user['username']))
+    except Exception as e:
+        print('😱{} {} What happened here {}'.format(user['username'], e, driver.page_source))
     get_more_info(driver, user)
     driver.quit()
