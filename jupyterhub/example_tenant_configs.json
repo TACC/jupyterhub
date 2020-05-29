@@ -7,13 +7,11 @@ for volume mounts
 
 host_projects_root_dir and container_projects_root_dir only needed when calling the projects API
 
-add config['instance']='dev' for user/group dev configs
-staging configs should match prod configs, so we query non-dev instances with value.instance != dev
-
 <username>.user.config.<tenant>.<instance>.jhub
 {"name": "<username>.user.config.<tenant>.<instance>.jhub",
  "value": {
     "tenant": <tenant>,
+    "instance": <instance>,
     "images": [
      {'name':"foo/bar:1.0",},
      {'name':"foo/bar:1.2",
@@ -29,6 +27,7 @@ staging configs should match prod configs, so we query non-dev instances with va
 {"name": "<groupname>.group.config.<tenant>.<instance>.jhub",
  "value": {
     "tenant": <tenant>,
+    "instance": <instance>,
     "user": ["user1","testuser"],
     "images": [
     {'name':"foo/bar:1.2.5"},
@@ -42,6 +41,8 @@ staging configs should match prod configs, so we query non-dev instances with va
 config.<tenant>.<instance>.jhub
 {"name": "config.<tenant>.<instance>.jhub",
  "value": {
+   "tenant": <tenant>,
+   "instance": <instance>,
    "volume_mounts": [{'type': 'hostPath',
                       'path': '/work/{tas_homedir}',
                       'mountPath': '/home/jupyter/work',

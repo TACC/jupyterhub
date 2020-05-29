@@ -18,12 +18,12 @@ TAS_ROLE_PASS = os.environ.get('TAS_ROLE_PASS')
 
 def hook(spawner):
     spawner.start_timeout = 60 * 5
-    spawner.log.info('👻 {}'.format(spawner.configs))
-    spawner.log.info('👽 {}'.format(spawner.user_configs))
-    spawner.log.info('😱 {}'.format(spawner.user_options))
+    spawner.log.info('👻 tenant configs 👻 {}'.format(spawner.configs))
+    spawner.log.info('👽 user configs 👽 {}'.format(spawner.user_configs))
+    spawner.log.info('😱 user options (from form) 😱 {}'.format(spawner.user_options))
 
     get_agave_access_data(spawner)
-    spawner.log.info('access:{}, refresh:{}, url:{}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
+    spawner.log.info('access token: {}, refresh token: {}, url: {}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
     get_tas_data(spawner)
     get_mounts(spawner)
     get_projects(spawner)

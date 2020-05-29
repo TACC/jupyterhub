@@ -25,9 +25,7 @@ def get_tenant_configs():
 
 def get_user_configs(username):
     ag = Agave(api_server=base_url, token=service_token)
-    q = {'value.user': username, 'value.tenant': TENANT}
-    if INSTANCE != 'dev':
-        q['value.instance'] = {'$ne':'dev'}
+    q = {'value.user': username, 'value.tenant': TENANT, 'value.instance': INSTANCE}
     print('user query: {}'.format(q))
     return ag.meta.listMetadata(q=str(q))
 
