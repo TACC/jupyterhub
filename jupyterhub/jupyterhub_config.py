@@ -3,18 +3,9 @@ import os
 
 from agavepy.agave import Agave
 
-def get_config_metadata_name():
-    return 'config.{}.{}.jhub'.format(
-        os.environ.get('TENANT'),
-        os.environ.get('INSTANCE'))
-
-service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
-base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
-ag = Agave(api_server=base_url, token=service_token)
-q={'name': get_config_metadata_name()}
-configs = ag.meta.listMetadata(q=str(q))[0]['value']
-print(configs)
-
+from jupyterhub.common import get_tenant_configs
+CONFIGS = get_tenant_configs()
+print(CONFIGS)
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
 #------------------------------------------------------------------------------
@@ -94,27 +85,14 @@ print(configs)
 #    and `data` is the POST form data from the login page.
 #c.JupyterHub.authenticator_class = 'jupyterhub.auth.PAMAuthenticator'
 c.JupyterHub.authenticator_class = 'oauthenticator.agave.AgaveOAuthenticator'
+# c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
 
-# c.AgaveOAuthenticator.service_token = os.environ['AGAVE_SERVICE_TOKEN']
-# c.AgaveOAuthenticator.service_client_id = os.environ['AGAVE_CLIENT_ID']
-# c.AgaveOAuthenticator.service_client_secret = os.environ['AGAVE_CLIENT_SECRET']
-# c.AgaveOAuthenticator.service_base_url = os.environ['AGAVE_BASE_URL']
-# c.AgaveOAuthenticator.tenant = os.environ['TENANT']
-# c.AgaveOAuthenticator.instance = os.environ['INSTANCE']
-
-#if using env vars?
-# c.AgaveOAuthenticator.oauth_callback_url = os.environ['OAUTH_CALLBACK_URL']
-# c.AgaveOAuthenticator.client_id = os.environ['TENANT_CLIENT_ID']
-# c.AgaveOAuthenticator.client_secret = os.environ['TENANT_CLIENT_SECRET']
-
-c.AgaveOAuthenticator.oauth_callback_url = configs['oauth_callback_url']
-c.AgaveOAuthenticator.client_id = configs['agave_client_id']
-c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
+c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
+c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
+c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
+c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
 
 
-# c.AgaveOAuthenticator.agave_base_url = os.environ['AGAVE_BASE_URL']
-
-# c.AgaveMixin.agave_base_url = os.environ['AGAVE_BASE_URL']
 
 ## The base URL of the entire application.
 #
@@ -255,6 +233,7 @@ c.AgaveOAuthenticator.client_secret = configs['agave_client_secret']
 #
 #  .. versionadded:: 0.8
 #c.JupyterHub.hub_connect_ip = ''
+c.JupyterHub.hub_connect_ip = os.environ.get('HUB_CONNECT_IP')
 
 ## DEPRECATED
 #
@@ -401,7 +380,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #
 #  Should be a subclass of Spawner.
 #c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
-c.JupyterHub.spawner_class = 'jupyterhub.abacospawner.AbacoSpawner'
+c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 
 ## Path to SSL certificate file for the public facing interface of the proxy
 #
@@ -681,15 +660,6 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #  that the interface of the spawner class is not deemed stable across versions,
 #  so using this functionality might cause your JupyterHub upgrades to break.
 #c.Spawner.options_form = traitlets.Undefined
-image_options = configs.get('images')
-if len(image_options) > 1 or configs.get('HPC_available') == 'True':
-    options=''
-    if configs.get('HPC_available') == 'True':
-        options = '<option value="HPC"> HPC </option>'
-    for image in image_options:
-        options = options + ' <option value="Cloud: {}"> {} </option>'.format(image, image)
-        print(options)
-    c.AbacoSpawner.options_form = 'Choose an image: <select name="image" multiple="false"> {} </select>'.format(options)
 
 ## Interval (in seconds) on which to poll the spawner for single-user server's
 #  status.
@@ -965,3 +935,14 @@ if len(image_options) > 1 or configs.get('HPC_available') == 'True':
 
 ## The number of threads to allocate for encryption
 #c.CryptKeeper.n_threads = 8
+
+
+# debugging
+c.KubeSpawner.debug = True
+c.KubeSpawner.delete_stopped_pods = False
+# c.KubeSpawner.args = ['--allow-root']
+
+#setup
+from jupyterhub.spawner_hooks import hook, get_notebook_options
+c.KubeSpawner.pre_spawn_hook = hook
+c.KubeSpawner.options_form = get_notebook_options

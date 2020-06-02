@@ -2,53 +2,28 @@
 Custom Authenticator to use Agave OAuth with JupyterHub
 """
 
-import grp
 import json
 import os
-import pwd
-import sys
-import urllib
+import re
 import time
-
-from tornado.auth import OAuth2Mixin
-from tornado import gen, web
-
-from tornado.httputil import url_concat
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient
+import urllib
 
 from jupyterhub.auth import LocalAuthenticator
-
+from kubernetes import client
+from tornado import gen, web
+from tornado.auth import OAuth2Mixin
+from tornado.httpclient import HTTPRequest, AsyncHTTPClient
+from tornado.httputil import url_concat
 from traitlets import Set
 
+from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string
 from .oauth2 import OAuthLoginHandler, OAuthenticator
 
-from agavepy.agave import Agave
-
-NETWORK_STORAGE_ROOT_DIR = os.environ.get('NETWORK_STORAGE_ROOT_DIR', '/corral-repl/projects/agave')
-TOKENS_DIR = '{}/jupyter/tokens'.format(NETWORK_STORAGE_ROOT_DIR)
-
-INSTANCE = os.environ.get('INSTANCE')
-TENANT = os.environ.get('TENANT')
-
-def get_user_token_dir(username):
-    return os.path.join(TOKENS_DIR, INSTANCE, TENANT, username)
-
-def get_config_metadata_name():
-    return 'config.{}.{}.jhub'.format(TENANT, INSTANCE)
-
-service_token = os.environ.get('AGAVE_SERVICE_TOKEN')
-
-if not service_token:
-    raise Exception("Missing SERVICE_TOKEN configuration.")
-
-base_url = os.environ.get('AGAVE_BASE_URL', "https://api.tacc.utexas.edu")
-ag = Agave(api_server=base_url, token=service_token)
-q={'name': get_config_metadata_name()}
-configs = ag.meta.listMetadata(q=str(q))[0]['value']
+CONFIGS = get_tenant_configs()
 
 class AgaveMixin(OAuth2Mixin):
-    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(configs.get('agave_base_url'))
-    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(configs.get('agave_base_url'))
+    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
+    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(CONFIGS.get('agave_base_url').rstrip('/'))
 
 
 class AgaveLoginHandler(OAuthLoginHandler, AgaveMixin):
@@ -56,9 +31,7 @@ class AgaveLoginHandler(OAuthLoginHandler, AgaveMixin):
 
 
 class AgaveOAuthenticator(OAuthenticator):
-    login_service = configs.get('agave_login_button_text')
-    client_id_env = 'AGAVE_CLIENT_ID'
-    client_secret_env = 'AGAVE_CLIENT_SECRET'
+    login_service = CONFIGS.get('agave_login_button_text')
     login_handler = AgaveLoginHandler
 
     team_whitelist = Set(
@@ -72,26 +45,26 @@ class AgaveOAuthenticator(OAuthenticator):
         code = handler.get_argument("code", False)
         if not code:
             raise web.HTTPError(400, "oauth callback made without a token")
-        # TODO: Configure the curl_httpclient for tornado
+
         http_client = AsyncHTTPClient()
 
         params = dict(
             grant_type="authorization_code",
             code=code,
-            redirect_uri=configs.get('oauth_callback_url'),
-            client_id=configs.get('agave_client_id'),
-            client_secret=configs.get('agave_client_secret')
+            redirect_uri=CONFIGS.get('oauth_callback_url'),
+            client_id=CONFIGS.get('agave_client_id'),
+            client_secret=CONFIGS.get('agave_client_secret')
         )
 
         url = url_concat(
-            "{}/oauth2/token".format(configs.get('agave_base_url')), params)
+            "{}/oauth2/token".format(CONFIGS.get('agave_base_url').rstrip('/')), params)
         self.log.info(url)
         self.log.info(params)
         bb_header = {"Content-Type":
                      "application/x-www-form-urlencoded;charset=utf-8"}
         req = HTTPRequest(url,
                           method="POST",
-                          validate_cert=eval(configs.get('oauth_validate_cert')),
+                          validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
                           body=urllib.parse.urlencode(params).encode('utf-8'),
                           headers=bb_header
                           )
@@ -113,14 +86,14 @@ class AgaveOAuthenticator(OAuthenticator):
                    "User-Agent": "JupyterHub",
                    "Authorization": "Bearer {}".format(access_token)
                    }
-        req = HTTPRequest("{}/profiles/v2/me".format(configs.get('agave_base_url')),
-                          validate_cert=eval(configs.get('oauth_validate_cert')),
+        req = HTTPRequest("{}/profiles/v2/me".format(CONFIGS.get('agave_base_url').rstrip('/')),
+                          validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
                           method="GET",
                           headers=headers
                           )
         resp = yield http_client.fetch(req)
         resp_json = json.loads(resp.body.decode('utf8', 'replace'))
-        self.log.info('resp_json after /profiles/v2/me:',str(resp_json))
+        self.log.info('resp_json after /profiles/v2/me:', str(resp_json))
         username = resp_json["result"]["username"]
 
         self.ensure_token_dir(username)
@@ -129,87 +102,98 @@ class AgaveOAuthenticator(OAuthenticator):
 
     def ensure_token_dir(self, username):
         try:
-            os.makedirs(get_user_token_dir(username))
+            os.makedirs(self.get_user_token_dir(username))
         except OSError as e:
             self.log.info("Got error trying to make token dir: "
-                          "{} exception: {}".format(get_user_token_dir(username), e))
+                          "{} exception: {}".format(self.get_user_token_dir(username), e))
 
-    def get_uid_gid(self):
-        """look up uid and gid of apim home dir. If this path doesn't exist, stat_info will contain the root user and group
-        (that is, uid = 0 = gid)."""
-        # first, see if they are defined in the environment
-        uid = configs.get('uid')
-        gid = configs.get('gid')
-        if uid and gid:
-            self.log.info('Tenant set custom UID and GID for jupyteruser. UID: {} GID: {}'.format(uid, gid))
-            try:
-                uid = int(uid)
-                gid = int(gid)
-                self.log.info('Cast to int and returning UID: {}, GID:{}'.format(uid, gid))
-                return uid, gid
-            except Exception as e:
-                self.log.info("Got exception {} casting to int".format(e))
-        # otherwise, try to derive them from existing file ownerships
-        stat_info = os.stat('/home/apim/jupyterhub_config.py')
-        uid = stat_info.st_uid
-        gid = stat_info.st_gid
-        self.log.info("Used the /home/apim/jupyterhub_config.py file to determine UID: {}, GID:{}".format(uid, gid))
-        return uid, gid
+    def get_user_token_dir(self, username):
+        return os.path.join(
+            '/agave/jupyter/tokens',
+            INSTANCE,
+            TENANT,
+            username)
 
     def save_token(self, access_token, refresh_token, username, created_at, expires_in, expires_at):
-        tenant_id = configs.get('agave_tenant_id')
+        tenant_id = CONFIGS.get('agave_tenant_id')
         # agavepy file
         d = [{'token': access_token,
-             'refresh_token': refresh_token,
-             'tenant_id': tenant_id,
-             'api_key': configs.get('agave_client_id'),
-             'api_secret': configs.get('agave_client_secret'),
-             'api_server': '{}'.format(configs.get('agave_base_url')),
-             'verify': eval(configs.get('oauth_validate_cert')),
-             }]
-        with open(os.path.join(get_user_token_dir(username), '.agpy'), 'w') as f:
+              'refresh_token': refresh_token,
+              'tenant_id': tenant_id,
+              'api_key': CONFIGS.get('agave_client_id'),
+              'api_secret': CONFIGS.get('agave_client_secret'),
+              'api_server': '{}'.format(CONFIGS.get('agave_base_url').rstrip('/')),
+              'verify': eval(CONFIGS.get('oauth_validate_cert')),
+              }]
+        with open(os.path.join(self.get_user_token_dir(username), '.agpy'), 'w') as f:
             json.dump(d, f)
-        self.log.info("Saved agavepy cache file to {}".format(os.path.join(get_user_token_dir(username), '.agpy')))
+        self.log.info("Saved agavepy cache file to {}".format(os.path.join(self.get_user_token_dir(username), '.agpy')))
         self.log.info("agavepy cache file data: {}".format(d))
+        self.create_configmap(username, '.agpy', json.dumps(d))
+
         # cli file
         d = {'tenantid': tenant_id,
-             'baseurl': '{}'.format(configs.get('agave_base_url')),
+             'baseurl': '{}'.format(CONFIGS.get('agave_base_url').rstrip('/')),
              'devurl': '',
-             'apikey': configs.get('agave_client_id'),
+             'apikey': CONFIGS.get('agave_client_id'),
              'username': username,
              'access_token': access_token,
              'refresh_token': refresh_token,
              'created_at': str(int(created_at)),
-             'apisecret': configs.get('agave_client_secret'),
+             'apisecret': CONFIGS.get('agave_client_secret'),
              'expires_in': str(expires_in),
              'expires_at': str(expires_at)
              }
-        with open(os.path.join(get_user_token_dir(username), 'current'), 'w') as f:
+        with open(os.path.join(self.get_user_token_dir(username), 'current'), 'w') as f:
             json.dump(d, f)
-        self.log.info("Saved CLI cache file to {}".format(os.path.join(get_user_token_dir(username), 'current')))
+        self.log.info("Saved CLI cache file to {}".format(os.path.join(self.get_user_token_dir(username), 'current')))
         self.log.info("CLI cache file data: {}".format(d))
-        # try to set the ownership of the cache files to the apim user and an appropriate group. We need to ignore
-        # permission errors for portability.
-        try:
-            uid, gid = self.get_uid_gid()
-            os.chown(os.path.join(get_user_token_dir(username), '.agpy'), uid, gid)
-            os.chown(os.path.join(get_user_token_dir(username), 'current'), uid, gid)
-        # if we get a permission error, ignore it because we may be in a different enviornment without an apim user and
-        # thus trying to set ownership to root.
-        except OSError as e:
-            self.log.info("OSError setting permissions on cache files: {}".format(e))
-        except PermissionError as e:
-            self.log.info("PermissionError setting permissions on cache files: {}".format(e))
-        try:
-            os.chmod(os.path.join(get_user_token_dir(username), 'current'), 0o777)
-            os.chmod(os.path.join(get_user_token_dir(username), '.agpy'), 0o777)
-            self.log.info("Changed permissions on token cache files to 0777.")
-        except OSError as e:
-            self.log.info("OSError setting permissions on cache files: {}".format(e))
-        except PermissionError as e:
-            self.log.info("PermissionError setting permissions on cache files: {}".format(e))
+        self.create_configmap(username, 'current', json.dumps(d))
 
-class LocalAgaveOAuthenticator(LocalAuthenticator,
-                                   AgaveOAuthenticator):
+    def create_configmap(self, username, name, d):
+        with open('/run/secrets/kubernetes.io/serviceaccount/token') as f:
+            token = f.read()
+        with open('/run/secrets/kubernetes.io/serviceaccount/namespace') as f:
+            namespace = f.read()
+
+        configuration = client.Configuration()
+        configuration.api_key['authorization'] = 'Bearer {}'.format(token)
+        configuration.host = 'https://kubernetes.default'
+        configuration.ssl_ca_cert = '/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+
+        api_instance = client.CoreV1Api(client.ApiClient(configuration))
+
+        safe_username = safe_string(username).lower()
+        safe_tenant = safe_string(TENANT).lower()
+        safe_instance = safe_string(INSTANCE).lower()
+        configmap_name_prefix = '{}-{}-{}-jhub'.format(safe_username, safe_tenant, safe_instance)
+        configmap_name = '{}-{}'.format(configmap_name_prefix, re.sub('[^A-Za-z0-9]+', '', name))  # remove the . from .agpy to accomodate k8 naming rules
+
+        body = client.V1ConfigMap(
+            data={name: str(d)},
+            metadata={
+                'name': configmap_name,
+                'labels': {'app': configmap_name_prefix, 'tenant': TENANT, 'instance': INSTANCE, 'username': username}
+            }
+        )
+
+        self.log.info('{}:{}'.format('configmap body', body))
+
+        try: # delete any current configmaps to ensure no stale tokens
+            api_response = api_instance.delete_namespaced_config_map(configmap_name, namespace)
+            self.log.info('{} configmap deleted'.format(configmap_name))
+            print(str(api_response))
+        except Exception as e:
+            print("Exception when calling CoreV1Api->delete_namespaced_config_map: %s\n" % e)
+
+        try:
+            api_response = api_instance.create_namespaced_config_map(namespace, body)
+            self.log.info('{} configmap created'.format(name))
+            print(str(api_response))
+        except Exception as e:
+            print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
+
+
+class LocalAgaveOAuthenticator(LocalAuthenticator, AgaveOAuthenticator):
     """A version that mixes in local system user creation"""
     pass
