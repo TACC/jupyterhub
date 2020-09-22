@@ -632,7 +632,7 @@ c.Spawner.cmd = ['jupyterhub-singleuser']
 #
 #  Note that this does *not* prevent users from accessing files outside of this
 #  path! They can do so with many other means.
-#c.Spawner.notebook_dir = ''
+c.Spawner.notebook_dir = '/home/jupyter'
 
 ## An HTML form for options a user can specify on launching their server.
 #
