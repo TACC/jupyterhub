@@ -1,9 +1,9 @@
-# Image: taccsciapps/jupyterhub:1.0.0-1.0.0
+# Image: taccsciapps/jupyterhub:1.0
 
 from jupyterhub/jupyterhub:1.0.0
 
 RUN apt-get update && apt-get install -y build-essential chromium-browser curl unzip vim
-RUN pip install oauthenticator agavepy jupyterhub-kubespawner notebook ipdb humanfriendly git+https://github.com/kubernetes-client/python.git selenium webdriver-manager
+RUN pip install oauthenticator agavepy jupyterhub-kubespawner==0.11.1 notebook ipdb humanfriendly git+https://github.com/kubernetes-client/python.git selenium webdriver-manager
 
 ADD spawner_hooks.py /opt/conda/lib/python3.6/site-packages/jupyterhub/spawner_hooks.py
 ADD jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py
