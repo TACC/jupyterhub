@@ -15,11 +15,19 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
     "images": [
      {'name':"foo/bar:1.0",},
      {'name':"foo/bar:1.2",
-      "extra_pod_config": {"nodeSelector": {"selector":"true"}}}],
+      "extra_pod_config": {"nodeSelector": {"selector":"true"}},
+      "notebook_dir": "/start/notebook/here"}],
     "user": "<username>",
     "config_type": "user",
     "mem_limit": "5G",
     "cpu_limit": "5",
+    "volume_mounts": [
+       {'type': 'nfs',
+       'server': 'nfs.server.tacc.utexas.edu',
+       'path': '/gpfs/example/path/{username}/special_folder',
+       'mountPath': '/home/jupyter/user_folder',
+       'readOnly': "True"},
+    ]
  }
 }
 
@@ -31,10 +39,17 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
     "user": ["user1","testuser"],
     "images": [
     {'name':"foo/bar:1.2.5"},
- ],
+   ],
     "config_type": "group",
     "mem_limit": "4G",
     "cpu_limit": "4",
+    "volume_mounts": [
+       {'type': 'nfs',
+       'server': 'nfs.server.tacc.utexas.edu',
+       'path': '/gpfs/example/path/special_group_folder',
+       'mountPath': '/home/jupyter/group_folder',
+       'readOnly': "True"},
+    ]
  }
 }
 
@@ -56,7 +71,8 @@ config.<tenant>.<instance>.jhub
   "images": [
     {"name":"foo/bar:2.0",
      "extra_pod_config": {"nodeSelector": {"selector2":"true"}},
-     "hpc_available": "True"
+     "hpc_available": "True",
+     "notebook_dir": "/start/notebook/here"}
     },
     {"name":"another/image:1.5",
      "extra_pod_config": {"nodeSelector": {"selector1":"true"}},

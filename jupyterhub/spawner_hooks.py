@@ -63,6 +63,7 @@ def hook(spawner):
             merge_configs(image['extra_pod_config'], spawner.extra_pod_config)
         if image.get('extra_container_config'):
             merge_configs(image['extra_container_config'], spawner.extra_pod_config)
+        spawner.notebook_dir = image.get('notebook_dir', '')
 
     if not spawner.user_options.get('hpc'):
         tenant_mem_limit = spawner.configs.get('mem_limit')
@@ -303,6 +304,10 @@ def get_mounts(spawner):
          },
     ]
     volume_mounts = spawner.configs.get('volume_mounts')
+
+    for item in spawner.user_configs:
+        if item['value'].get('volume_mounts'):
+            volume_mounts += [x for x in item['value']['volume_mounts'] if x not in volume_mounts]
 
     template_vars = {
         'username': spawner.user.name,
