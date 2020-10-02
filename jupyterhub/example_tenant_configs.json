@@ -1,11 +1,37 @@
 # Notes
-for volume mounts
-  available template vars:
-    tenant_id
-    username
-    tas_homedir
+# available settings for user/group configs
+#    mem_limit
+#    cpu_limit
+#    images
+#    volume_mounts
+# available image options (*required)
+#    * name (dockerrepo/imagename:tag)
+#    extra_pod_config (various nodeSelectors)
+#    notebook_dir (what dir the notebook starts in)
+#    hpc_available
+#    extra_container_config
+#    volume_mounts
+# available template vars for volume mounts
+#    tenant_id
+#    username
+#    tas_homedir
+# availabe tenant config (*required)
+#    * tenant                    * agave_tenant_id
+#    * instance                  * agave_login_button_text
+#    * oauth_callback_url        * mem_limit
+#    * agave_client_id           * cpu_limit
+#    * agave_client_secret       * images
+#    * agave_base_url            * volume_mounts
+#    uid                          oauth_validate_cert
+#    gid                          extra_pod_config
+#    required for projects
+#       container_projects_root_dir
+#       host_projects_root_dir
+#       network_storage
 
-host_projects_root_dir and container_projects_root_dir only needed when calling the projects API
+
+
+host_projects_root_dir and container_projects_root_dir only needed when calling the projects API,
 
 <username>.user.config.<tenant>.<instance>.jhub
 {"name": "<username>.user.config.<tenant>.<instance>.jhub",
@@ -89,6 +115,8 @@ config.<tenant>.<instance>.jhub
   "agave_login_button_text": "Jupyterhub",
   "mem_limit": "3G",
   "cpu_limit": "1",
-  "extra_pod_config": {"nodeSelector": {"selector":"true"}}
-  }
+  "extra_pod_config": {"nodeSelector": {"selector":"true"}},
+  "uid": "458981",
+  "gid": "816877"
+}
 }

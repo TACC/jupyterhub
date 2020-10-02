@@ -25,8 +25,6 @@ def hook(spawner):
     get_agave_access_data(spawner)
     spawner.log.info('access token: {}, refresh token: {}, url: {}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
     get_tas_data(spawner)
-    get_mounts(spawner)
-    get_projects(spawner)
 
     spawner.uid = int(spawner.configs.get('uid', spawner.tas_uid))
     spawner.gid = int(spawner.configs.get('gid', spawner.tas_gid))
@@ -66,18 +64,25 @@ def hook(spawner):
         spawner.notebook_dir = image.get('notebook_dir', '')
 
     if not spawner.user_options.get('hpc'):
+        # find highest available limit between tenant/user/group configs
         tenant_mem_limit = spawner.configs.get('mem_limit')
         mem_limits = {tenant_mem_limit: humanfriendly.parse_size(tenant_mem_limit)}
         cpu_limits = [spawner.configs.get('cpu_limit')]
         for item in spawner.user_configs:
-            mem_limits.update({item['value']['mem_limit']:humanfriendly.parse_size(item['value']['mem_limit'])})
-            cpu_limits.append(item['value']['cpu_limit'])
+            mem_limit = item['value'].get('mem_limit')
+            cpu_limit = item['value'].get('cpu_limit')
+            if mem_limit:
+                mem_limits.update({mem_limit:humanfriendly.parse_size(mem_limit)})
+            if cpu_limit:
+                cpu_limits.append(cpu_limit)
         spawner.log.info('available limits -- mem: {} cpu:{}'.format(mem_limits, cpu_limits))
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
         #Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
         spawner.mem_guarantee = '.001K'
         spawner.cpu_guarantee = float(0.001)
+    get_mounts(spawner)
+    get_projects(spawner)
 
 
 def merge_configs(x, y):
