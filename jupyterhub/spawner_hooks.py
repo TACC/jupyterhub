@@ -204,8 +204,10 @@ def get_tas_data(spawner):
         spawner.log.error("Did not get JSON from TAS API. rsp: {}"
                           "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(rsp, e, url, TAS_ROLE_ACCT))
         return
+    spawner.tas_gid = None
     try:
         spawner.tas_uid = data['result']['uid']
+        spawner.tas_gid = data['result']['gid']
         spawner.tas_homedir = data['result']['homeDirectory']
     except Exception as e:
         spawner.log.error("Did not get attributes from TAS API. rsp: {}"
@@ -214,8 +216,7 @@ def get_tas_data(spawner):
 
     # first look for an "extended profile" record in agave metadata. such a record might have the
     # gid to use for this user.
-    spawner.tas_gid = None
-    if spawner.access_token and spawner.refresh_token and spawner.url:
+    if spawner.access_token and spawner.refresh_token and spawner.url and not spawner.tas_gid:
         ag = get_oauth_client(spawner.url, spawner.access_token, spawner.refresh_token)
         meta_name = 'profile.{}.{}'.format(TENANT, spawner.user.name)
         q = "{'name': '" + meta_name + "'}"
