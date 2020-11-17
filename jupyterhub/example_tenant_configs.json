@@ -6,6 +6,7 @@
 #    volume_mounts
 # available image options (*required)
 #    * name (dockerrepo/imagename:tag)
+#    display_name
 #    extra_pod_config (various nodeSelectors)
 #    notebook_dir (what dir the notebook starts in)
 #    hpc_available
@@ -102,6 +103,7 @@ config.<tenant>.<instance>.jhub
     },
     {"name":"another/image:1.5",
      "extra_pod_config": {"nodeSelector": {"selector1":"true"}},
+     "display_name": "Default Image"
     }
   ],
   "oauth_callback_url": "https://exampleurl.tacc.cloud/hub/oauth_callback",

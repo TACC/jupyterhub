@@ -23,7 +23,8 @@ def hook(spawner):
     spawner.log.info('😱 user options (from form) 😱 {}'.format(spawner.user_options))
 
     get_agave_access_data(spawner)
-    spawner.log.info('access token: {}, refresh token: {}, url: {}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
+    spawner.log.info(
+        'access token: {}, refresh token: {}, url: {}'.format(spawner.access_token, spawner.refresh_token, spawner.url))
     get_tas_data(spawner)
 
     spawner.uid = int(spawner.configs.get('uid', spawner.tas_uid))
@@ -32,10 +33,11 @@ def hook(spawner):
     spawner.extra_pod_config = spawner.configs.get('extra_pod_config', {})
     spawner.extra_container_config = spawner.configs.get('extra_container_config', {})
 
-    if len(spawner.configs.get('images')) == 1 and not spawner.hpc_available:  # only 1 image option, so we skipped the form
+    if len(spawner.configs.get(
+            'images')) == 1 and not spawner.hpc_available:  # only 1 image option, so we skipped the form
         spawner.image = spawner.configs.get('images')[0]['name']
     else:
-        #verify form data
+        # verify form data
         image_options = spawner.configs.get('images')
         for item in spawner.user_configs:
             for image in item['value']['images']:
@@ -49,7 +51,8 @@ def hook(spawner):
             allowed_options = next(option for option in image_options if option['name'] == image['name'])
             if spawner.user_options.get('hpc'):
                 if not eval(allowed_options.get('hpc_available', 'False')):
-                    spawner.log.error('hpc is not available for this image. {} -- {}'.format(spawner.user.name, allowed_options))
+                    spawner.log.error(
+                        'hpc is not available for this image. {} -- {}'.format(spawner.user.name, allowed_options))
                     raise web.HTTPError(403)
         except Exception as e:
             spawner.log.error('{} user options not allowed. selected options {}. allowed options {}. got an error:{}'
@@ -72,13 +75,13 @@ def hook(spawner):
             mem_limit = item['value'].get('mem_limit')
             cpu_limit = item['value'].get('cpu_limit')
             if mem_limit:
-                mem_limits.update({mem_limit:humanfriendly.parse_size(mem_limit)})
+                mem_limits.update({mem_limit: humanfriendly.parse_size(mem_limit)})
             if cpu_limit:
                 cpu_limits.append(cpu_limit)
         spawner.log.info('available limits -- mem: {} cpu:{}'.format(mem_limits, cpu_limits))
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
-        #Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
+        # Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
         spawner.mem_guarantee = '.001K'
         spawner.cpu_guarantee = float(0.001)
     get_mounts(spawner)
@@ -108,7 +111,7 @@ async def get_notebook_options(spawner):
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
 
-    if not hasattr(spawner, 'hpc_available'): #only looped through user options -- check the tenant options for hpc
+    if not hasattr(spawner, 'hpc_available'):  # only looped through user options -- check the tenant options for hpc
         for image in spawner.configs.get('images'):
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
@@ -120,7 +123,8 @@ async def get_notebook_options(spawner):
     if len(image_options) > 1 or spawner.hpc_available:
         options = ''
         for image in image_options:
-            options = options + " <option value='{}'> {} </option>".format(json.dumps(image), image['name'])
+            options = options + " <option value='{}'> {} </option>".format(json.dumps(image),
+                                                                           image.get('display_name', image['name']))
         js = '''(function hpc(){
                 var select_element = document.getElementById('image'); 
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
@@ -137,7 +141,7 @@ async def get_notebook_options(spawner):
             })()'''
         if spawner.hpc_available:
             select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
-            hpc ='''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
                 <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
                 '''
             return '{}{}'.format(select_images, hpc)
@@ -242,11 +246,11 @@ def get_tas_data(spawner):
 
 
 def get_user_token_dir(username):
-        return os.path.join(
-            '/agave/jupyter/tokens',
-            INSTANCE,
-            TENANT,
-            username)
+    return os.path.join(
+        '/agave/jupyter/tokens',
+        INSTANCE,
+        TENANT,
+        username)
 
 
 def get_mounts(spawner):
@@ -259,7 +263,8 @@ def get_mounts(spawner):
     spawner.init_containers = [{
         "name": "rw-configmap-workaround",
         "image": "busybox",
-        "command": ["/bin/sh", "-c", "cp -r /agave_data/.agpy /agave_data_rw/.agpy && cp -r /agave_data/current /agave_data_rw/current && ls -lah /agave_data_rw && cat /agave_data_rw/current/current && chmod -R 777 /agave_data_rw && ls -lah /agave_data_rw"],
+        "command": ["/bin/sh", "-c",
+                    "cp -r /agave_data/.agpy /agave_data_rw/.agpy && cp -r /agave_data/current /agave_data_rw/current && ls -lah /agave_data_rw && cat /agave_data_rw/current/current && chmod -R 777 /agave_data_rw && ls -lah /agave_data_rw"],
         "volumeMounts": [
             {
                 'mountPath': '/agave_data/.agpy',
@@ -287,10 +292,10 @@ def get_mounts(spawner):
 
     spawner.volumes = [
         {'name': '{}-configmap'.format(agpy_safe_name),
-         'configMap': {'name': agpy_safe_name, 'defaultMode':0o0777 }
+         'configMap': {'name': agpy_safe_name, 'defaultMode': 0o0777}
          },
         {'name': '{}-configmap'.format(current_safe_name),
-         'configMap': {'name': current_safe_name, 'defaultMode':0o0777 }
+         'configMap': {'name': current_safe_name, 'defaultMode': 0o0777}
          },
         {'name': agpy_safe_name,
          'emptyDir': {},
@@ -335,7 +340,7 @@ def get_mounts(spawner):
             vol = {
                 'path': path,
                 'readOnly': eval(item['readOnly'])
-                   }
+            }
             if item['type'] == 'nfs':
                 vol['server'] = item['server']
 
