@@ -106,8 +106,9 @@ async def get_notebook_options(spawner):
     image_options = spawner.configs.get('images')
 
     for item in spawner.user_configs:
-        for image in item['value']['images']:
-            image_options.append(image)
+        for image in item['value'].get('images'):
+            if image not in image_options:
+                image_options+=[image]
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
 
