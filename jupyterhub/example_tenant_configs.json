@@ -62,6 +62,7 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
  "value": {
     "tenant": <tenant>,
     "instance": <instance>,
+    "group_name": "myspecialgroup",
     "user": ["user1","testuser"],
     "images": [
     {'name':"foo/bar:1.2.5"},
@@ -84,6 +85,7 @@ config.<tenant>.<instance>.jhub
  "value": {
    "tenant": <tenant>,
    "instance": <instance>,
+   "config_type": "tenant",
    "volume_mounts": [{'type': 'hostPath',
                       'path': '/work/{tas_homedir}',
                       'mountPath': '/home/jupyter/work',
