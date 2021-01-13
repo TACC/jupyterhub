@@ -38,13 +38,13 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
  "value": {
     "tenant": <tenant>,
     "instance": <instance>,
+    "config_type": "user",
+    "user": "<username>",
     "images": [
      {'name':"foo/bar:1.0",},
      {'name':"foo/bar:1.2",
       "extra_pod_config": {"nodeSelector": {"selector":"true"}},
       "notebook_dir": "/start/notebook/here"}],
-    "user": "<username>",
-    "config_type": "user",
     "mem_limit": "5G",
     "cpu_limit": "5",
     "volume_mounts": [
@@ -62,12 +62,12 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
  "value": {
     "tenant": <tenant>,
     "instance": <instance>,
+    "config_type": "group",
     "group_name": "myspecialgroup",
     "user": ["user1","testuser"],
     "images": [
     {'name':"foo/bar:1.2.5"},
-   ],
-    "config_type": "group",
+    ],
     "mem_limit": "4G",
     "cpu_limit": "4",
     "volume_mounts": [
