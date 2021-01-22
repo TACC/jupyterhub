@@ -108,7 +108,7 @@ async def get_notebook_options(spawner):
     for item in spawner.user_configs:
         for image in item['value'].get('images'):
             if image not in image_options:
-                image_options+=[image]
+                image_options += [image]
             if eval(image.get('hpc_available', 'False')):
                 spawner.hpc_available = True
 
@@ -130,6 +130,19 @@ async def get_notebook_options(spawner):
                 var select_element = document.getElementById('image'); 
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                 var value = JSON.parse(value);
+                document.getElementById('image_description').innerText = ''
+                if ('description' in value) {
+                    document.getElementById('image_description').innerText = value['description'];
+                }
+            })()'''
+
+        hpc = ''
+
+        if spawner.hpc_available:
+            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+                <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
+                '''
+            js = js + '''
                 if (value['hpc_available']) {
                     document.getElementById('hpc').checked = false;
                     document.getElementById('hpc').style.display = 'inline-block';
@@ -138,16 +151,11 @@ async def get_notebook_options(spawner):
                     document.getElementById('hpc').checked = false;
                     document.getElementById('hpc').style.display = 'none';
                     document.getElementById('hpc_label').style.display = 'none';
-                }
-            })()'''
-        if spawner.hpc_available:
-            select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
-            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
-                <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
-                '''
-            return '{}{}'.format(select_images, hpc)
-        else:
-            return '<select id="image" name="image" size="10"> {} </select>'.format(options)
+                }'''
+        image_description = '<p id="image_description" style="display: inline-block"> </p>'
+        select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
+
+        return '{}{}{}'.format(select_images, image_description, hpc)
 
 
 def get_agave_access_data(spawner):
