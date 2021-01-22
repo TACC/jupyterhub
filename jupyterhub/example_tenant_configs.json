@@ -104,6 +104,8 @@ config.<tenant>.<instance>.jhub
     },
     {"name":"another/image:1.5",
      "extra_pod_config": {"nodeSelector": {"selector1":"true"}},
+     "description": "This version 1.5 of another/image",
+     "display_name": "Default Settings"
     }
   ],
   "oauth_callback_url": "https://exampleurl.tacc.cloud/hub/oauth_callback",
