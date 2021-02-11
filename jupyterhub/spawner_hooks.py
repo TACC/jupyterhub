@@ -126,7 +126,12 @@ async def get_notebook_options(spawner):
         for image in image_options:
             options = options + " <option value='{}'> {} </option>".format(json.dumps(image),
                                                                            image.get('display_name', image['name']))
-        js = '''(function hpc(){
+
+        if spawner.hpc_available:
+            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+                <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
+                '''
+            js = '''(function hpc(){
                 var select_element = document.getElementById('image'); 
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                 var value = JSON.parse(value);
@@ -134,15 +139,6 @@ async def get_notebook_options(spawner):
                 if ('description' in value) {
                     document.getElementById('image_description').innerText = value['description'];
                 }
-            })()'''
-
-        hpc = ''
-
-        if spawner.hpc_available:
-            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
-                <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
-                '''
-            js = js + '''
                 if (value['hpc_available']) {
                     document.getElementById('hpc').checked = false;
                     document.getElementById('hpc').style.display = 'inline-block';
@@ -151,10 +147,23 @@ async def get_notebook_options(spawner):
                     document.getElementById('hpc').checked = false;
                     document.getElementById('hpc').style.display = 'none';
                     document.getElementById('hpc_label').style.display = 'none';
-                }'''
+                }
+            })()'''
+        else:
+            js = '''(function hpc(){
+                            var select_element = document.getElementById('image'); 
+                            var value = select_element.value || select_element.options[select_element.selectedIndex].value;
+                            var value = JSON.parse(value);
+                            document.getElementById('image_description').innerText = ''
+                            if ('description' in value) {
+                                document.getElementById('image_description').innerText = value['description'];
+                            }
+                        })()'''
+
+            hpc = ''
+
         image_description = '<p id="image_description" style="display: inline-block"> </p>'
         select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(js, options)
-
         return '{}{}{}'.format(select_images, image_description, hpc)
 
 
