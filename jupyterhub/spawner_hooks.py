@@ -128,7 +128,7 @@ async def get_notebook_options(spawner):
                                                                            image.get('display_name', image['name']))
 
         if spawner.hpc_available:
-            hpc = '''<input type="checkbox" id="hpc" name="hpc" style="display: none">
+            hpc = '''<br/><input type="checkbox" id="hpc" name="hpc" style="display: none">
                 <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
                 '''
             js = '''(function hpc(){
