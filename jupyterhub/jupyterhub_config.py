@@ -374,7 +374,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #              'environment':
 #          }
 #      ]
-#c.JupyterHub.services = []
+c.JupyterHub.services = CONFIGS.get('services', [])
 
 ## The class to use for spawning single-user servers.
 #
