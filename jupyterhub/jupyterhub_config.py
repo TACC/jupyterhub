@@ -91,7 +91,7 @@ c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
 c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
 c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
 c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
-
+c.Authenticator.admin_users = CONFIGS.get('admin_users', [])
 
 
 ## The base URL of the entire application.
