@@ -38,13 +38,13 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
  "value": {
     "tenant": <tenant>,
     "instance": <instance>,
+    "config_type": "user",
+    "user": "<username>",
     "images": [
      {'name':"foo/bar:1.0",},
      {'name':"foo/bar:1.2",
       "extra_pod_config": {"nodeSelector": {"selector":"true"}},
       "notebook_dir": "/start/notebook/here"}],
-    "user": "<username>",
-    "config_type": "user",
     "mem_limit": "5G",
     "cpu_limit": "5",
     "volume_mounts": [
@@ -62,11 +62,12 @@ host_projects_root_dir and container_projects_root_dir only needed when calling 
  "value": {
     "tenant": <tenant>,
     "instance": <instance>,
+    "config_type": "group",
+    "group_name": "myspecialgroup",
     "user": ["user1","testuser"],
     "images": [
     {'name':"foo/bar:1.2.5"},
-   ],
-    "config_type": "group",
+    ],
     "mem_limit": "4G",
     "cpu_limit": "4",
     "volume_mounts": [
@@ -84,6 +85,7 @@ config.<tenant>.<instance>.jhub
  "value": {
    "tenant": <tenant>,
    "instance": <instance>,
+   "config_type": "tenant",
    "volume_mounts": [{'type': 'hostPath',
                       'path': '/work/{tas_homedir}',
                       'mountPath': '/home/jupyter/work',
@@ -102,7 +104,8 @@ config.<tenant>.<instance>.jhub
     },
     {"name":"another/image:1.5",
      "extra_pod_config": {"nodeSelector": {"selector1":"true"}},
-     "display_name": "Default Image"
+     "description": "This version 1.5 of another/image",
+     "display_name": "Default Settings"
     }
   ],
   "oauth_callback_url": "https://exampleurl.tacc.cloud/hub/oauth_callback",

@@ -48,7 +48,7 @@ print(CONFIGS)
 ## Grant admin users permission to access single-user servers.
 #
 #  Users should be properly informed if this is enabled.
-#c.JupyterHub.admin_access = False
+c.JupyterHub.admin_access = True
 
 ## DEPRECATED since version 0.7.2, use Authenticator.admin_users instead.
 #c.JupyterHub.admin_users = set()
@@ -91,7 +91,7 @@ c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
 c.AgaveOAuthenticator.client_id = CONFIGS['agave_client_id']
 c.AgaveOAuthenticator.client_secret = CONFIGS['agave_client_secret']
 c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
-
+c.Authenticator.admin_users = CONFIGS.get('admin_users', [])
 
 
 ## The base URL of the entire application.
@@ -374,7 +374,7 @@ c.JupyterHub.hub_ip = '0.0.0.0' #listen on all interfaces
 #              'environment':
 #          }
 #      ]
-#c.JupyterHub.services = []
+c.JupyterHub.services = CONFIGS.get('services', [])
 
 ## The class to use for spawning single-user servers.
 #
