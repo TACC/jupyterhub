@@ -21,18 +21,18 @@ from .oauth2 import OAuthLoginHandler, OAuthenticator
 
 CONFIGS = get_tenant_configs()
 
-class AgaveMixin(OAuth2Mixin):
-    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('agave_base_url').rstrip('/'))
-    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(CONFIGS.get('agave_base_url').rstrip('/'))
+class TapisMixin(OAuth2Mixin):
+    _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
+    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(CONFIGS.get('tapis_base_url').rstrip('/'))
 
 
-class AgaveLoginHandler(OAuthLoginHandler, AgaveMixin):
+class TapisLoginHandler(OAuthLoginHandler, TapisMixin):
     pass
 
 
-class AgaveOAuthenticator(OAuthenticator):
+class TapisOAuthenticator(OAuthenticator):
     login_service = CONFIGS.get('agave_login_button_text')
-    login_handler = AgaveLoginHandler
+    login_handler = TapisLoginHandler
 
     team_whitelist = Set(
         config=True,
@@ -49,38 +49,51 @@ class AgaveOAuthenticator(OAuthenticator):
         http_client = AsyncHTTPClient()
 
         params = dict(
-            grant_type="authorization_code",
-            code=code,
-            redirect_uri=CONFIGS.get('oauth_callback_url'),
-            client_id=CONFIGS.get('agave_client_id'),
-            client_secret=CONFIGS.get('agave_client_secret')
+            #grant_type="authorization_code",
+            #code=code,
+            #redirect_uri=CONFIGS.get('oauth_callback_url'),
+            client_id=CONFIGS.get('tapis_client_id'),
+            client_secret=CONFIGS.get('tapis_client_secret')
         )
 
         url = url_concat(
-            "{}/oauth2/token".format(CONFIGS.get('agave_base_url').rstrip('/')), params)
+            "{}/oauth2/token".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
         self.log.info(url)
         self.log.info(params)
-        bb_header = {"Content-Type":
-                     "application/x-www-form-urlencoded;charset=utf-8"}
+        #bb_header = {"Content-Type":
+        #             "application/x-www-form-urlencoded;charset=utf-8"}
+        bb_header = {"Content-Type":"application/json"}
         req = HTTPRequest(url,
                           method="POST",
                           validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
-                          body=urllib.parse.urlencode(params).encode('utf-8'),
+                          #body=urllib.parse.urlencode(params).encode('utf-8'),
+                          # data should be username, password and grant_type=password
+                          body=json.loads(data),
                           headers=bb_header
                           )
         resp = yield http_client.fetch(req)
-        resp_json = json.loads(resp.body.decode('utf8', 'replace'))
-
+        #resp_json = json.loads(resp.body.decode('utf8', 'replace'))
+        resp_json = json.loads(resp.body)
         access_token = resp_json['access_token']
         refresh_token = resp_json['refresh_token']
         expires_in = resp_json['expires_in']
+        expires_at = resp_json['expires_at']
+        username =resp_json["claims"]["tapis/username"]
+        created_at = time.time()
+
+        '''
         try:
             expires_in = int(expires_in)
         except ValueError:
             expires_in = 3600
         created_at = time.time()
         expires_at = time.ctime(created_at + expires_in)
+        '''
+
         self.log.info(str(resp_json))
+
+        '''
+        ###Dont need this part in v3, as the user info is available in access token
         # Determine who the logged in user is
         headers = {"Accept": "application/json",
                    "User-Agent": "JupyterHub",
@@ -95,7 +108,7 @@ class AgaveOAuthenticator(OAuthenticator):
         resp_json = json.loads(resp.body.decode('utf8', 'replace'))
         self.log.info('resp_json after /profiles/v2/me:', str(resp_json))
         username = resp_json["result"]["username"]
-
+        '''
         self.ensure_token_dir(username)
         self.save_token(access_token, refresh_token, username, created_at, expires_in, expires_at)
         return username
@@ -114,6 +127,7 @@ class AgaveOAuthenticator(OAuthenticator):
             TENANT,
             username)
 
+    ## Is this data used for accessing metadata, if so, this has to be tapis v2(agave) info
     def save_token(self, access_token, refresh_token, username, created_at, expires_in, expires_at):
         tenant_id = CONFIGS.get('agave_tenant_id')
         # agavepy file
@@ -122,7 +136,7 @@ class AgaveOAuthenticator(OAuthenticator):
               'tenant_id': tenant_id,
               'api_key': CONFIGS.get('agave_client_id'),
               'api_secret': CONFIGS.get('agave_client_secret'),
-              'api_server': '{}'.format(CONFIGS.get('agave_base_url').rstrip('/')),
+              'api_server': '{}'.format(CONFIGS.get('_base_url').rstrip('/')),
               'verify': eval(CONFIGS.get('oauth_validate_cert')),
               }]
         with open(os.path.join(self.get_user_token_dir(username), '.agpy'), 'w') as f:
@@ -194,6 +208,6 @@ class AgaveOAuthenticator(OAuthenticator):
             print("Exception when calling CoreV1Api->create_namespaced_config_map: %s\n" % e)
 
 
-class LocalAgaveOAuthenticator(LocalAuthenticator, AgaveOAuthenticator):
+class LocalAgaveOAuthenticator(LocalAuthenticator, TapisOAuthenticator):
     """A version that mixes in local system user creation"""
     pass
