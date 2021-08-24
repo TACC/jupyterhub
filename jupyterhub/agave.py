@@ -7,6 +7,8 @@ import os
 import re
 import time
 import urllib
+import base64
+import jwt
 
 from jupyterhub.auth import LocalAuthenticator
 from kubernetes import client
@@ -31,12 +33,12 @@ class TapisLoginHandler(OAuthLoginHandler, TapisMixin):
 
 
 class TapisOAuthenticator(OAuthenticator):
-    login_service = CONFIGS.get('agave_login_button_text')
+    login_service = CONFIGS.get('tapis_login_button_text')
     login_handler = TapisLoginHandler
 
     team_whitelist = Set(
         config=True,
-        help="Automatically whitelist members of selected teams",
+        help="Automatically allow members of selected teams",
     )
 
     @gen.coroutine
@@ -49,36 +51,44 @@ class TapisOAuthenticator(OAuthenticator):
         http_client = AsyncHTTPClient()
 
         params = dict(
-            #grant_type="authorization_code",
-            #code=code,
-            #redirect_uri=CONFIGS.get('oauth_callback_url'),
-            client_id=CONFIGS.get('tapis_client_id'),
-            client_secret=CONFIGS.get('tapis_client_secret')
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri=CONFIGS.get('oauth_callback_url'),
+            #client_id=CONFIGS.get('tapis_client_id'),
+            #client_secret=CONFIGS.get('tapis_client_secret')
         )
+        credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
+        cred_bytes = credentials.encode('ascii')
+        cred_encoded = base64.b64encode(cred_bytes)
 
         url = url_concat(
-            "{}/oauth2/token".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
+            "{}/oauth2/token".format(CONFIGS.get('tapis_base_url').rstrip('/')))
         self.log.info(url)
         self.log.info(params)
-        #bb_header = {"Content-Type":
-        #             "application/x-www-form-urlencoded;charset=utf-8"}
-        bb_header = {"Content-Type":"application/json"}
+
+        payload = json.dumps(data)
+        self.log.info(payload)
+        # Create Header object
+        headers = {}
+        headers['Authorization'] = cred_encoded
+
+        headers['Content-Type'] = 'application/json'
         req = HTTPRequest(url,
                           method="POST",
                           validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
-                          #body=urllib.parse.urlencode(params).encode('utf-8'),
-                          # data should be username, password and grant_type=password
-                          body=json.loads(data),
-                          headers=bb_header
+                          body=urllib.parse.urlencode(params).encode('utf-8'),
+                          #body=payload,
+                          headers=headers
                           )
         resp = yield http_client.fetch(req)
         #resp_json = json.loads(resp.body.decode('utf8', 'replace'))
         resp_json = json.loads(resp.body)
-        access_token = resp_json['access_token']
-        refresh_token = resp_json['refresh_token']
-        expires_in = resp_json['expires_in']
-        expires_at = resp_json['expires_at']
-        username =resp_json["claims"]["tapis/username"]
+        access_token = resp_json['result']['access_token']['access_token']
+        refresh_token = resp_json['result']['refresh_token']['refresh_token']
+        expires_in = resp_json['result']['access_token']['expires_in']
+        expires_at = resp_json['result']['access_token']['expires_at']
+        data = jwt.decode(access_token, verify=False)
+        username =data["claims"]["tapis/username"]
         created_at = time.time()
 
         '''
