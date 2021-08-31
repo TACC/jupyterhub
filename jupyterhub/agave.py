@@ -50,13 +50,14 @@ class TapisOAuthenticator(OAuthenticator):
 
         http_client = AsyncHTTPClient()
 
-        params = dict(
-            grant_type="authorization_code",
-            code=code,
-            redirect_uri=CONFIGS.get('oauth_callback_url'),
+        params = {
+            "grant_type":"authorization_code",
+            "code":code,
+            "redirect_uri":CONFIGS.get('oauth_callback_url'),
             #client_id=CONFIGS.get('tapis_client_id'),
             #client_secret=CONFIGS.get('tapis_client_secret')
-        )
+        }
+
         credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
         cred_bytes = credentials.encode('ascii')
         cred_encoded = base64.b64encode(cred_bytes)
@@ -69,11 +70,12 @@ class TapisOAuthenticator(OAuthenticator):
 
         payload = json.dumps(data)
         self.log.info(payload)
-        
+
         # Create Header object
-        headers = {}
-        headers['Authorization'] = "Basic %s" % cred_encoded_string
-        headers['Content-Type'] = 'application/json'
+        headers = {
+            "Authorization":"Basic %s" % cred_encoded_string,
+            "Content-Type":"application/json"
+        }
 
         req = HTTPRequest(url,
                           method="POST",
@@ -90,7 +92,7 @@ class TapisOAuthenticator(OAuthenticator):
         expires_in = resp_json['result']['access_token']['expires_in']
         expires_at = resp_json['result']['access_token']['expires_at']
         data = jwt.decode(access_token, verify=False)
-        username =data["claims"]["tapis/username"]
+        username = data['tapis/username']
         created_at = time.time()
 
         '''
