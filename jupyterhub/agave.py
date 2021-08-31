@@ -25,7 +25,7 @@ CONFIGS = get_tenant_configs()
 
 class TapisMixin(OAuth2Mixin):
     _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
-    _OAUTH_ACCESS_TOKEN_URL = "{}/token".format(CONFIGS.get('tapis_base_url').rstrip('/'))
+    _OAUTH_ACCESS_TOKEN_URL = "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/'))
 
 
 class TapisLoginHandler(OAuthLoginHandler, TapisMixin):
@@ -60,19 +60,21 @@ class TapisOAuthenticator(OAuthenticator):
         credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
         cred_bytes = credentials.encode('ascii')
         cred_encoded = base64.b64encode(cred_bytes)
+        cred_encoded_string = cred_encoded.decode('ascii')
 
         url = url_concat(
-            "{}/oauth2/token".format(CONFIGS.get('tapis_base_url').rstrip('/')))
+            "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')))
         self.log.info(url)
         self.log.info(params)
 
         payload = json.dumps(data)
         self.log.info(payload)
+        
         # Create Header object
         headers = {}
-        headers['Authorization'] = cred_encoded
-
+        headers['Authorization'] = "Basic %s" % cred_encoded_string
         headers['Content-Type'] = 'application/json'
+
         req = HTTPRequest(url,
                           method="POST",
                           validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
