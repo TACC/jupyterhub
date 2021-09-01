@@ -53,9 +53,7 @@ class TapisOAuthenticator(OAuthenticator):
         params = {
             "grant_type":"authorization_code",
             "code":code,
-            "redirect_uri":CONFIGS.get('oauth_callback_url'),
-            #client_id=CONFIGS.get('tapis_client_id'),
-            #client_secret=CONFIGS.get('tapis_client_secret')
+            "redirect_uri":CONFIGS.get('oauth_callback_url')
         }
 
         credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
