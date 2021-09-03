@@ -87,10 +87,10 @@ c.JupyterHub.admin_access = True
 c.JupyterHub.authenticator_class = 'oauthenticator.agave.TapisOAuthenticator'
 # c.JupyterHub.authenticator_class = 'jupyterhub.auth.DummyAuthenticator' #for testing
 
-c.AgaveOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
-c.AgaveOAuthenticator.client_id = CONFIGS['tapis_client_id']
-c.AgaveOAuthenticator.client_secret = CONFIGS['tapis_client_secret']
-c.AgaveOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
+c.TapisOAuthenticator.oauth_callback_url = CONFIGS['oauth_callback_url']
+c.TapisOAuthenticator.client_id = CONFIGS['tapis_client_id']
+c.TapisOAuthenticator.client_secret = CONFIGS['tapis_client_secret']
+c.TapisOAuthenticator.authorize_url = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
 c.Authenticator.admin_users = CONFIGS.get('admin_users', [])
 
 

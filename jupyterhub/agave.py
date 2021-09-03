@@ -25,6 +25,11 @@ CONFIGS = get_tenant_configs()
 
 class TapisMixin(OAuth2Mixin):
     _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
+    try:
+        print("OAUTH2 AUTHORIZE URL: %s" % _OAUTH_AUTHORIZE_URL)
+    except Exception as e:
+        print(e)
+
     _OAUTH_ACCESS_TOKEN_URL = "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/'))
 
 
@@ -33,8 +38,10 @@ class TapisLoginHandler(OAuthLoginHandler, TapisMixin):
 
 
 class TapisOAuthenticator(OAuthenticator):
-    login_service = CONFIGS.get('tapis_login_button_text')
+    login_service = CONFIGS.get('agave_login_button_text')
+    print("IN AUTHENTICATOR")
     login_handler = TapisLoginHandler
+    print("AUTHORIZE URL: %s" % login_handler._OAUTH_AUTHORIZE_URL)
 
     team_whitelist = Set(
         config=True,
@@ -44,7 +51,17 @@ class TapisOAuthenticator(OAuthenticator):
     @gen.coroutine
     def authenticate(self, handler, data):
         self.log.info('data', data)
+        self.log.info('handler', handler)
+        self.log.info('self', self)
+
+        try:
+            self.log.info(handler.get_arguments("args"))
+        except Exception as e:
+            self.log.info(e)
+
         code = handler.get_argument("code", False)
+        self.log.info(code)
+
         if not code:
             raise web.HTTPError(400, "oauth callback made without a token")
 
@@ -62,12 +79,9 @@ class TapisOAuthenticator(OAuthenticator):
         cred_encoded_string = cred_encoded.decode('ascii')
 
         url = url_concat(
-            "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')))
+            "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
         self.log.info(url)
         self.log.info(params)
-
-        payload = json.dumps(data)
-        self.log.info(payload)
 
         # Create Header object
         headers = {
@@ -78,8 +92,7 @@ class TapisOAuthenticator(OAuthenticator):
         req = HTTPRequest(url,
                           method="POST",
                           validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
-                          body=urllib.parse.urlencode(params).encode('utf-8'),
-                          #body=payload,
+                          body=json.dumps(params),
                           headers=headers
                           )
         resp = yield http_client.fetch(req)
@@ -89,8 +102,7 @@ class TapisOAuthenticator(OAuthenticator):
         refresh_token = resp_json['result']['refresh_token']['refresh_token']
         expires_in = resp_json['result']['access_token']['expires_in']
         expires_at = resp_json['result']['access_token']['expires_at']
-        logger.debug(resp_json)
-        logger.debug(access_token)
+        self.log.info(access_token)
         data = jwt.decode(access_token, verify=False)
         username = data['tapis/username']
         created_at = time.time()
@@ -150,7 +162,7 @@ class TapisOAuthenticator(OAuthenticator):
               'tenant_id': tenant_id,
               'api_key': CONFIGS.get('agave_client_id'),
               'api_secret': CONFIGS.get('agave_client_secret'),
-              'api_server': '{}'.format(CONFIGS.get('_base_url').rstrip('/')),
+              'api_server': '{}'.format(CONFIGS.get('agave_base_url').rstrip('/')),
               'verify': eval(CONFIGS.get('oauth_validate_cert')),
               }]
         with open(os.path.join(self.get_user_token_dir(username), '.agpy'), 'w') as f:
