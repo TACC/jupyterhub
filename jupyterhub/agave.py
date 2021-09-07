@@ -25,11 +25,6 @@ CONFIGS = get_tenant_configs()
 
 class TapisMixin(OAuth2Mixin):
     _OAUTH_AUTHORIZE_URL = "{}/oauth2/authorize".format(CONFIGS.get('tapis_base_url').rstrip('/'))
-    try:
-        print("OAUTH2 AUTHORIZE URL: %s" % _OAUTH_AUTHORIZE_URL)
-    except Exception as e:
-        print(e)
-
     _OAUTH_ACCESS_TOKEN_URL = "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/'))
 
 
@@ -39,9 +34,7 @@ class TapisLoginHandler(OAuthLoginHandler, TapisMixin):
 
 class TapisOAuthenticator(OAuthenticator):
     login_service = CONFIGS.get('agave_login_button_text')
-    print("IN AUTHENTICATOR")
     login_handler = TapisLoginHandler
-    print("AUTHORIZE URL: %s" % login_handler._OAUTH_AUTHORIZE_URL)
 
     team_whitelist = Set(
         config=True,
@@ -50,17 +43,7 @@ class TapisOAuthenticator(OAuthenticator):
 
     @gen.coroutine
     def authenticate(self, handler, data):
-        self.log.info('data', data)
-        self.log.info('handler', handler)
-        self.log.info('self', self)
-
-        try:
-            self.log.info(handler.get_arguments("args"))
-        except Exception as e:
-            self.log.info(e)
-
         code = handler.get_argument("code", False)
-        self.log.info(code)
 
         if not code:
             raise web.HTTPError(400, "oauth callback made without a token")
@@ -73,15 +56,13 @@ class TapisOAuthenticator(OAuthenticator):
             "redirect_uri":CONFIGS.get('oauth_callback_url')
         }
 
+        url = url_concat(
+            "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
+
         credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
         cred_bytes = credentials.encode('ascii')
         cred_encoded = base64.b64encode(cred_bytes)
         cred_encoded_string = cred_encoded.decode('ascii')
-
-        url = url_concat(
-            "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
-        self.log.info(url)
-        self.log.info(params)
 
         # Create Header object
         headers = {
@@ -96,45 +77,16 @@ class TapisOAuthenticator(OAuthenticator):
                           headers=headers
                           )
         resp = yield http_client.fetch(req)
-        #resp_json = json.loads(resp.body.decode('utf8', 'replace'))
+
         resp_json = json.loads(resp.body)
         access_token = resp_json['result']['access_token']['access_token']
         refresh_token = resp_json['result']['refresh_token']['refresh_token']
         expires_in = resp_json['result']['access_token']['expires_in']
         expires_at = resp_json['result']['access_token']['expires_at']
-        self.log.info(access_token)
         data = jwt.decode(access_token, verify=False)
         username = data['tapis/username']
         created_at = time.time()
 
-        '''
-        try:
-            expires_in = int(expires_in)
-        except ValueError:
-            expires_in = 3600
-        created_at = time.time()
-        expires_at = time.ctime(created_at + expires_in)
-        '''
-
-        self.log.info(str(resp_json))
-
-        '''
-        ###Dont need this part in v3, as the user info is available in access token
-        # Determine who the logged in user is
-        headers = {"Accept": "application/json",
-                   "User-Agent": "JupyterHub",
-                   "Authorization": "Bearer {}".format(access_token)
-                   }
-        req = HTTPRequest("{}/profiles/v2/me".format(CONFIGS.get('agave_base_url').rstrip('/')),
-                          validate_cert=eval(CONFIGS.get('oauth_validate_cert')),
-                          method="GET",
-                          headers=headers
-                          )
-        resp = yield http_client.fetch(req)
-        resp_json = json.loads(resp.body.decode('utf8', 'replace'))
-        self.log.info('resp_json after /profiles/v2/me:', str(resp_json))
-        username = resp_json["result"]["username"]
-        '''
         self.ensure_token_dir(username)
         self.save_token(access_token, refresh_token, username, created_at, expires_in, expires_at)
         return username
