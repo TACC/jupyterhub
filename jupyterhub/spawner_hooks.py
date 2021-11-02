@@ -84,6 +84,13 @@ def hook(spawner):
         # Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
         spawner.mem_guarantee = '.001K'
         spawner.cpu_guarantee = float(0.001)
+        spawner.environment = {
+            "MKL_NUM_THREADS": max(cpu_limits),
+            "NUMEXPR_NUM_THREADS": max(cpu_limits),
+            "OMP_NUM_THREADS": max(cpu_limits),
+            "OPENBLAS_NUM_THREADS": max(cpu_limits),
+            "SCINCO-JUPYTERHUB-IMAGE": spawner.image
+        }
     get_mounts(spawner)
     get_projects(spawner)
 
@@ -132,7 +139,7 @@ async def get_notebook_options(spawner):
                 <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
                 '''
             js = '''(function hpc(){
-                var select_element = document.getElementById('image'); 
+                var select_element = document.getElementById('image');
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                 var value = JSON.parse(value);
                 document.getElementById('image_description').innerText = ''
@@ -151,7 +158,7 @@ async def get_notebook_options(spawner):
             })()'''
         else:
             js = '''(function hpc(){
-                            var select_element = document.getElementById('image'); 
+                            var select_element = document.getElementById('image');
                             var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                             var value = JSON.parse(value);
                             document.getElementById('image_description').innerText = ''

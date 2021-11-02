@@ -59,7 +59,7 @@ class TapisOAuthenticator(OAuthenticator):
         url = url_concat(
             "{}/oauth2/tokens".format(CONFIGS.get('tapis_base_url').rstrip('/')), params)
 
-        credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_secret'))
+        credentials = str(CONFIGS.get('tapis_client_id')) + str(":") + str(CONFIGS.get('tapis_client_key'))
         cred_bytes = credentials.encode('ascii')
         cred_encoded = base64.b64encode(cred_bytes)
         cred_encoded_string = cred_encoded.decode('ascii')
