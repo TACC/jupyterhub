@@ -48,7 +48,9 @@ def hook(spawner):
             spawner.log.info(
                 'Checking user options: image-{} hpc-{} against metadata: {}'.format(
                     image, spawner.user_options.get('hpc'), image_options))
-            allowed_options = next(option for option in image_options if option['name'] == image['name'])
+            allowed_options = next(
+                option for option in image_options if option['name'] == image['name'] and option["display_name"] == image["display_name"]
+            )
             if spawner.user_options.get('hpc'):
                 if not eval(allowed_options.get('hpc_available', 'False')):
                     spawner.log.error(
@@ -89,7 +91,7 @@ def hook(spawner):
             "NUMEXPR_NUM_THREADS": max(cpu_limits),
             "OMP_NUM_THREADS": max(cpu_limits),
             "OPENBLAS_NUM_THREADS": max(cpu_limits),
-            "SCINCO-JUPYTERHUB-IMAGE": spawner.image
+            "SCINCO_JUPYTERHUB_IMAGE": spawner.image
         }
     get_mounts(spawner)
     get_projects(spawner)
@@ -360,6 +362,8 @@ def get_mounts(spawner):
             # volume names must consist of lower case alphanumeric characters or '-',
             # and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc',
             # regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')
+            if item["mountPath"][-1] == '/':
+                item["mountPath"] = item["mountPath"][:-1]
             vol_name = re.sub(r'([^a-z0-9-\s]+?)', '', item['mountPath'].split('/')[-1].lower())
 
             vol = {
@@ -393,7 +397,6 @@ def get_projects(spawner):
         spawner.log.info("no access_token or url")
         return None
     url = '{}/projects/v2/'.format(spawner.url)
-
     try:
         ag = get_oauth_client(spawner.url, spawner.access_token, spawner.refresh_token)
         rsp = ag.geturl(url)
