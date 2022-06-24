@@ -145,6 +145,7 @@ async def get_notebook_options(spawner):
                 var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                 var value = JSON.parse(value);
                 document.getElementById('image_description').innerText = ''
+                document.getElementsByClassName('btn-jupyter')[0].disabled = false;
                 if ('description' in value) {
                     document.getElementById('image_description').innerText = value['description'];
                 }
@@ -164,6 +165,7 @@ async def get_notebook_options(spawner):
                             var value = select_element.value || select_element.options[select_element.selectedIndex].value;
                             var value = JSON.parse(value);
                             document.getElementById('image_description').innerText = ''
+                            document.getElementsByClassName('btn-jupyter')[0].disabled = false;
                             if ('description' in value) {
                                 document.getElementById('image_description').innerText = value['description'];
                             }
@@ -390,18 +392,40 @@ def get_projects(spawner):
     spawner.host_projects_root_dir = spawner.configs.get('host_projects_root_dir')
     spawner.container_projects_root_dir = spawner.configs.get('container_projects_root_dir')
     spawner.network_storage = spawner.configs.get('network_storage')
+    spawner.jupyterh_bearer_token = spawner.configs.get('jupyterh_bearer_token')
     if not spawner.host_projects_root_dir or not spawner.container_projects_root_dir:
         spawner.log.info("No host_projects_root_dir or container_projects_root_dir. configs:{}".format(spawner.configs))
         return None
     if not spawner.access_token or not spawner.url:
         spawner.log.info("no access_token or url")
         return None
-    url = '{}/projects/v2/'.format(spawner.url)
+    url = f"https://www.designsafe-ci.org/api/projects/?user={spawner.user.name}"
+    ds_assert_jwt = ""
+    # generate x-jwt-assertion-designsafe JWT
     try:
-        ag = get_oauth_client(spawner.url, spawner.access_token, spawner.refresh_token)
-        rsp = ag.geturl(url)
+        headers = {
+            "Authorization": f"Bearer {spawner.jupyterh_bearer_token}"
+        }
+
+        rsp = requests.get("https://agave.designsafe-ci.org/headers", headers=headers)
+        spawner.log.info(rsp)
+        data = rsp.json()
+        spawner.log.info(data)
+        ds_assert_jwt = data['headers']['X-Jwt-Assertion-Designsafe']
+        spawner.log.info(ds_assert_jwt)
     except Exception as e:
-        spawner.log.warn("Got exception calling /projects: {}".format(e))
+        spawner.log.warn(f"Unable to generate designsafe assertion jwt; error: {e}")
+        return None
+    
+    # use x-jwt-assertion-designsafe to call projects api
+    try:
+        headers = {
+            "X-Jwt-Assertion-Designsafe": ds_assert_jwt
+        }
+        
+        rsp = requests.get(url, headers=headers)
+    except Exception as e:
+        spawner.log.warn(f"Got exception calling /projects for user: {spawner.user.name}; error: {e}")
         return None
     try:
         data = rsp.json()

@@ -5,7 +5,7 @@ from agavepy.agave import Agave
 
 from jupyterhub.common import get_tenant_configs
 CONFIGS = get_tenant_configs()
-print(CONFIGS)
+print(f"jupyterhub_config.py configs: {CONFIGS}")
 #------------------------------------------------------------------------------
 # Application(SingletonConfigurable) configuration
 #------------------------------------------------------------------------------
@@ -381,7 +381,6 @@ c.JupyterHub.services = CONFIGS.get('services', [])
 #  Should be a subclass of Spawner.
 #c.JupyterHub.spawner_class = 'jupyterhub.spawner.LocalProcessSpawner'
 c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
-
 ## Path to SSL certificate file for the public facing interface of the proxy
 #
 #  When setting this, you should also set ssl_key
@@ -486,7 +485,6 @@ c.JupyterHub.template_paths = ['/opt/conda/share/jupyterhub/templates/custom_tem
 #  documentation for your spawner to verify!
 #c.Spawner.cmd = ['jupyterhub-singleuser']
 c.Spawner.cmd = ['jupyterhub-singleuser']
-
 ## Maximum number of consecutive failures to allow before shutting down
 #  JupyterHub.
 #
