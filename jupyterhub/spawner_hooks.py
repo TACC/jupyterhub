@@ -95,6 +95,7 @@ def hook(spawner):
         }
     get_mounts(spawner)
     get_projects(spawner)
+    get_licenses(spawner)
 
 
 def merge_configs(x, y):
@@ -107,6 +108,9 @@ def merge_configs(x, y):
 def get_oauth_client(base_url, access_token, refresh_token):
     return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
 
+async def parse_form_data(formdata, spawner):
+    spawner.log.info(f"FORM DATA: {formdata}")
+    return formdata
 
 async def get_notebook_options(spawner):
     spawner.configs = get_tenant_configs()
@@ -467,3 +471,61 @@ def get_projects(spawner):
         })
     spawner.log.info(spawner.volumes)
     spawner.log.info(spawner.volume_mounts)
+
+def get_licenses(spawner):
+    if not spawner.access_token or not spawner.url:
+        spawner.log.info("no access_token or url")
+        return None
+    matlab_url = f"https://www.designsafe-ci.org/api/licenses/MATLAB/?user={spawner.user.name}"
+    lsdyna_url = f"https://www.designsafe-ci.org/api/licenses/LSDYNA/?user={spawner.user.name}"
+    ds_assert_jwt = ""
+
+    try:
+        headers = {
+            "Authorization": f"Bearer {spawner.jupyterh_bearer_token}"
+        }
+
+        rsp = requests.get("https://agave.designsafe-ci.org/headers", headers=headers)
+        spawner.log.info(rsp)
+        data = rsp.json()
+        spawner.log.info(data)
+        ds_assert_jwt = data['headers']['X-Jwt-Assertion-Designsafe']
+        spawner.log.info(ds_assert_jwt)
+    except Exception as e:
+        spawner.log.warn(f"Unable to generate designsafe assertion jwt; error: {e}")
+        return None
+
+    try:
+        headers = {
+            "X-Jwt-Assertion-Designsafe": ds_assert_jwt
+        }
+        
+        rsp = requests.get(matlab_url, headers=headers)
+    except Exception as e:
+        spawner.log.warn(f"Got exception calling MATLAB license for user: {spawner.user.name}; error: {e}")
+        return None
+    try:
+        data = rsp.json()
+        spawner.environment['MATLAB_LICENSE'] = data['license']
+    except ValueError as e:
+        spawner.log.warn("Did not get JSON from /licenses/MATLAB. Exception: {}".format(e))
+        spawner.log.warn("Full response from service: {}".format(rsp))
+        spawner.log.warn("url used: {}".format(matlab_url))
+    
+    try:
+        headers = {
+            "X-Jwt-Assertion-Designsafe": ds_assert_jwt
+        }
+        
+        rsp = requests.get(lsdyna_url, headers=headers)
+    except Exception as e:
+        spawner.log.warn(f"Got exception calling LSDYNA license for user: {spawner.user.name}; error: {e}")
+        return None
+    try:
+        data = rsp.json()
+        spawner.environment['LSDYNA_LICENSE'] = data['license']
+    except ValueError as e:
+        spawner.log.warn("Did not get JSON from /licenses/LSDYNA. Exception: {}".format(e))
+        spawner.log.warn("Full response from service: {}".format(rsp))
+        spawner.log.warn("url used: {}".format(lsdyna_url))
+        return None
