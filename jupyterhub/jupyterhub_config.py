@@ -4,6 +4,7 @@ import os
 from agavepy.agave import Agave
 
 from jupyterhub.common import get_tenant_configs
+from jupyterhub.spawner_hooks import parse_form_data
 CONFIGS = get_tenant_configs()
 print(f"jupyterhub_config.py configs: {CONFIGS}")
 #------------------------------------------------------------------------------
@@ -417,7 +418,7 @@ c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 #c.JupyterHub.subdomain_host = ''
 
 ## Paths to search for jinja templates, before using the default templates.
-c.JupyterHub.template_paths = ['/opt/conda/share/jupyterhub/templates/custom_templates']
+c.JupyterHub.template_paths = ['/usr/local/share/jupyterhub/templates/custom_templates']
 
 ## Extra variables to be passed into jinja templates
 #c.JupyterHub.template_vars = {}
@@ -944,3 +945,4 @@ c.KubeSpawner.delete_stopped_pods = False
 from jupyterhub.spawner_hooks import hook, get_notebook_options
 c.KubeSpawner.pre_spawn_hook = hook
 c.KubeSpawner.options_form = get_notebook_options
+c.KubeSpawner.options_from_form = parse_form_data

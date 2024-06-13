@@ -476,8 +476,8 @@ def get_licenses(spawner):
     if not spawner.access_token or not spawner.url:
         spawner.log.info("no access_token or url")
         return None
-    matlab_url = f"https://www.designsafe-ci.org/api/licenses/MATLAB/?user={spawner.user.name}"
-    lsdyna_url = f"https://www.designsafe-ci.org/api/licenses/LSDYNA/?user={spawner.user.name}"
+    matlab_url = f"https://designsafe-ci.org/api/licenses/MATLAB/?username={spawner.user.name}"
+    lsdyna_url = f"https://designsafe-ci.org/api/licenses/LSDYNA/?username={spawner.user.name}"
     ds_assert_jwt = ""
 
     try:
