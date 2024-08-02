@@ -5,7 +5,6 @@ import os
 import re
 import requests
 
-from agavepy.agave import Agave
 from jupyterhub.common import (
     TENANT,
     INSTANCE,
@@ -130,10 +129,6 @@ def merge_configs(x, y):
             merged_pod_config[key].update(x[key])
 
 
-def get_oauth_client(base_url, access_token, refresh_token):
-    return Agave(api_server=base_url, token=access_token, refresh_token=refresh_token)
-
-
 async def parse_form_data(formdata, spawner):
     spawner.log.info(f"FORM DATA: {formdata}")
     return formdata
@@ -225,7 +220,7 @@ def get_agave_access_data(spawner):
     # k8 names must consist of lower case alphanumeric characters, '-' or '.',
     # and must start and end with an alphanumeric character
     # do all tenant names follow that? usernames?
-    token_file = os.path.join(get_user_token_dir(spawner.user.name), ".agpy")
+    token_file = os.path.join(get_user_token_dir(spawner.user.name), ".tapipy")
     spawner.log.info(
         "spawner looking for token file: {} for user: {}".format(
             token_file, spawner.user.name
@@ -347,14 +342,14 @@ def get_tas_data(spawner):
 
 
 def get_user_token_dir(username):
-    return os.path.join("/agave/jupyter/tokens", INSTANCE, TENANT, username)
+    return os.path.join("/tapis/jupyter/tokens", INSTANCE, TENANT, username)
 
 
 def get_mounts(spawner):
     safe_username = safe_string(spawner.user.name).lower()
     safe_tenant = safe_string(TENANT).lower()
     safe_instance = safe_string(INSTANCE).lower()
-    agpy_safe_name = "{}-{}-{}-jhub-agpy".format(
+    agpy_safe_name = "{}-{}-{}-jhub-tapipy".format(
         safe_username, safe_tenant, safe_instance
     )
     current_safe_name = "{}-{}-{}-jhub-current".format(
@@ -415,12 +410,12 @@ def get_mounts(spawner):
     ]
     spawner.volume_mounts = [
         {
-            "mountPath": "/etc/.agpy",
+            "mountPath": "/etc/.tapipy",
             "name": agpy_safe_name,
-            "subPath": ".agpy/.agpy",
+            "subPath": ".tapipy/.tapipy",
         },
         {
-            "mountPath": "/home/jupyter/.agave",
+            "mountPath": "/home/jupyter/.tapis-token",
             "name": current_safe_name,
             "subPath": "current",
         },
