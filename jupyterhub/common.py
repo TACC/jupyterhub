@@ -8,7 +8,7 @@ from tapipy.tapis import Tapis
 INSTANCE = os.environ.get("INSTANCE")
 TENANT = os.environ.get("TENANT")
 tapis_service_token = os.environ.get("TAPIS_SERVICE_TOKEN")
-projects_url = os.environ.get("PROJECTS_URL", "https://designsafeci-dev.tacc.utexas.edu")
+projects_url = os.environ.get("PROJECTS_URL", "https://designsafe-ci.org")
 tapis_base_url = os.environ.get("TAPIS_BASE_URL", "https://tacc.tapis.io")
 database = os.environ.get("TAPIS_DATABASE")
 collection = os.environ.get("TAPIS_COLLECTION")

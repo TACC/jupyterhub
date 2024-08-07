@@ -349,7 +349,7 @@ def get_mounts(spawner):
     safe_username = safe_string(spawner.user.name).lower()
     safe_tenant = safe_string(TENANT).lower()
     safe_instance = safe_string(INSTANCE).lower()
-    agpy_safe_name = "{}-{}-{}-jhub-tapipy".format(
+    tapipy_safe_name = "{}-{}-{}-jhub-tapipy".format(
         safe_username, safe_tenant, safe_instance
     )
     current_safe_name = "{}-{}-{}-jhub-current".format(
@@ -363,26 +363,26 @@ def get_mounts(spawner):
             "command": [
                 "/bin/sh",
                 "-c",
-                "cp -r /agave_data/.agpy /agave_data_rw/.agpy && cp -r /agave_data/current /agave_data_rw/current && ls -lah /agave_data_rw && cat /agave_data_rw/current/current && chmod -R 777 /agave_data_rw && ls -lah /agave_data_rw",
+                "cp -r /tapis_data/.tapipy /tapis_data_rw/.tapipy && cp -r /tapis_data/current /tapis_data_rw/current && ls -lah /tapis_data_rw && cat /tapis_data_rw/current/current && chmod -R 777 /tapis_data_rw && ls -lah /tapis_data_rw",
             ],
             "volumeMounts": [
                 {
-                    "mountPath": "/agave_data/.agpy",
-                    "name": "{}-configmap".format(agpy_safe_name),
-                    "subPath": ".agpy",
+                    "mountPath": "/tapis_data/.tapipy",
+                    "name": "{}-configmap".format(tapipy_safe_name),
+                    "subPath": ".tapipy",
                 },
                 {
-                    "mountPath": "/agave_data/current",
+                    "mountPath": "/tapis_data/current",
                     "name": "{}-configmap".format(current_safe_name),
                     "subPath": "current",
                 },
                 {
-                    "mountPath": "/agave_data_rw/.agpy",
-                    "name": agpy_safe_name,
-                    "subPath": ".agpy",
+                    "mountPath": "/tapis_data_rw/.tapipy",
+                    "name": tapipy_safe_name,
+                    "subPath": ".tapipy",
                 },
                 {
-                    "mountPath": "/agave_data_rw/current",
+                    "mountPath": "/tapis_data_rw/current",
                     "name": current_safe_name,
                     "subPath": "current",
                 },
@@ -392,15 +392,15 @@ def get_mounts(spawner):
 
     spawner.volumes = [
         {
-            "name": "{}-configmap".format(agpy_safe_name),
-            "configMap": {"name": agpy_safe_name, "defaultMode": 0o0777},
+            "name": "{}-configmap".format(tapipy_safe_name),
+            "configMap": {"name": tapipy_safe_name, "defaultMode": 0o0777},
         },
         {
             "name": "{}-configmap".format(current_safe_name),
             "configMap": {"name": current_safe_name, "defaultMode": 0o0777},
         },
         {
-            "name": agpy_safe_name,
+            "name": tapipy_safe_name,
             "emptyDir": {},
         },
         {
@@ -411,7 +411,7 @@ def get_mounts(spawner):
     spawner.volume_mounts = [
         {
             "mountPath": "/etc/.tapipy",
-            "name": agpy_safe_name,
+            "name": tapipy_safe_name,
             "subPath": ".tapipy/.tapipy",
         },
         {
