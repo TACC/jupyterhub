@@ -17,7 +17,7 @@ from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 from tornado.httputil import url_concat
 from traitlets import Set
 
-from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string
+from jupyterhub.common import TENANT, INSTANCE, get_tenant_configs, safe_string, get_user_token_dir
 from .oauth2 import OAuthLoginHandler, OAuthenticator
 
 CONFIGS = get_tenant_configs()
@@ -114,22 +114,19 @@ class TapisOAuthenticator(OAuthenticator):
 
     def ensure_token_dir(self, username):
         try:
-            os.makedirs(self.get_user_token_dir(username))
+            os.makedirs(get_user_token_dir(username))
         except OSError as e:
             self.log.info(
                 "Got error trying to make token dir: "
-                "{} exception: {}".format(self.get_user_token_dir(username), e)
+                "{} exception: {}".format(get_user_token_dir(username), e)
             )
 
-    def get_user_token_dir(self, username):
-        return os.path.join("/tapis/jupyter/tokens", INSTANCE, TENANT, username)
-
-    # Is this data used for accessing metadata, if so, this has to be tapis v2(agave) info
+    # Is this data used for accessing metadata, if so, this has to be tapis v3 info
     def save_token(
         self, access_token, refresh_token, username, created_at, expires_in, expires_at
     ):
         tenant_id = CONFIGS.get("tapis_tenant_id")
-        # agavepy file
+        # tapipy file
         d = [
             {
                 "token": access_token,
@@ -141,14 +138,14 @@ class TapisOAuthenticator(OAuthenticator):
                 "verify": eval(CONFIGS.get("oauth_validate_cert")),
             }
         ]
-        with open(os.path.join(self.get_user_token_dir(username), ".tapipy"), "w") as f:
+        with open(os.path.join(get_user_token_dir(username), ".tapipy"), "w") as f:
             json.dump(d, f)
         self.log.info(
-            "Saved agavepy cache file to {}".format(
-                os.path.join(self.get_user_token_dir(username), ".tapipy")
+            "Saved tapipy cache file to {}".format(
+                os.path.join(get_user_token_dir(username), ".tapipy")
             )
         )
-        self.log.info(f"agavepy cache file data: {d}")
+        self.log.info(f"tapipy cache file data: {d}")
         self.create_configmap(username, ".tapipy", json.dumps(d))
 
         # cli file
@@ -165,11 +162,11 @@ class TapisOAuthenticator(OAuthenticator):
             "expires_in": str(expires_in),
             "expires_at": str(expires_at),
         }
-        with open(os.path.join(self.get_user_token_dir(username), "current"), "w") as f:
+        with open(os.path.join(get_user_token_dir(username), "current"), "w") as f:
             json.dump(d, f)
         self.log.info(
             "Saved CLI cache file to {}".format(
-                os.path.join(self.get_user_token_dir(username), "current")
+                os.path.join(get_user_token_dir(username), "current")
             )
         )
         self.log.info("CLI cache file data: {}".format(d))
@@ -237,7 +234,7 @@ class TapisOAuthenticator(OAuthenticator):
             )
 
 
-class LocalAgaveOAuthenticator(LocalAuthenticator, TapisOAuthenticator):
+class LocalTapisOAuthenticator(LocalAuthenticator, TapisOAuthenticator):
     """A version that mixes in local system user creation"""
 
     pass

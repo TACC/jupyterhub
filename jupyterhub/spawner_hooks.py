@@ -4,6 +4,8 @@ import json
 import os
 import re
 import requests
+import time
+import jwt
 
 from jupyterhub.common import (
     TENANT,
@@ -12,8 +14,11 @@ from jupyterhub.common import (
     safe_string,
     get_user_configs,
     projects_url,
-    tapis_service_token
+    tapis_service_token,
+    refresh_access_token,
+    save_token
 )
+
 from tornado import web
 
 # TAS configuration:
@@ -25,20 +30,21 @@ TAS_ROLE_PASS = os.environ.get("TAS_ROLE_PASS")
 
 def hook(spawner):
     spawner.start_timeout = 60 * 5
-    spawner.log.info("👻 tenant configs 👻 {}".format(spawner.configs))
-    spawner.log.info("👽 user configs 👽 {}".format(spawner.user_configs))
-    spawner.log.info("😱 user options (from form) 😱 {}".format(spawner.user_options))
+    spawner.log.info(f"👻 tenant configs 👻 {spawner.configs}")
+    spawner.log.info(f"👽 user configs 👽 {spawner.user_configs}")
+    spawner.log.info(f"😱 user options (from form) 😱 {spawner.user_options}")
 
-    get_agave_access_data(spawner)
+    get_tapis_access_data(spawner)
     spawner.log.info(
-        "access token: {}, refresh token: {}, url: {}".format(
-            spawner.access_token, spawner.refresh_token, spawner.url
-        )
+        f"access token: {spawner.access_token}, refresh token: {spawner.refresh_token}, url: {spawner.url}"
     )
     get_tas_data(spawner)
 
-    spawner.uid = int(spawner.configs.get("uid", spawner.tas_uid))
-    spawner.gid = int(spawner.configs.get("gid", spawner.tas_gid))
+    if not spawner.tas_uid or not spawner.tas_gid:
+        raise web.HTTPError(403)
+
+    spawner.uid = int(spawner.tas_uid)
+    spawner.gid = int(spawner.tas_gid)
 
     spawner.extra_pod_config = spawner.configs.get("extra_pod_config", {})
     spawner.extra_container_config = spawner.configs.get("extra_container_config", {})
@@ -57,9 +63,7 @@ def hook(spawner):
         image = ast.literal_eval(spawner.user_options["image"][0])
         try:
             spawner.log.info(
-                "Checking user options: image-{} hpc-{} against metadata: {}".format(
-                    image, spawner.user_options.get("hpc"), image_options
-                )
+                f"Checking user options: image-{image} hpc-{spawner.user_options.get('hpc')} against metadata: {image_options}"
             )
             allowed_options = next(
                 option
@@ -70,16 +74,12 @@ def hook(spawner):
             if spawner.user_options.get("hpc"):
                 if not eval(allowed_options.get("hpc_available", "False")):
                     spawner.log.error(
-                        "hpc is not available for this image. {} -- {}".format(
-                            spawner.user.name, allowed_options
-                        )
+                        f"hpc is not available for this image. {spawner.user.name} -- {allowed_options}"
                     )
                     raise web.HTTPError(403)
         except Exception as e:
             spawner.log.error(
-                "{} user options not allowed. selected options {}. allowed options {}. got an error:{}".format(
-                    spawner.user.name, spawner.user_options, image_options, e
-                )
+                f"{spawner.user.name} user options not allowed. selected options {spawner.user_options}. allowed options {image_options}. got an error:{e}"
             )
             raise web.HTTPError(403)
 
@@ -103,7 +103,7 @@ def hook(spawner):
             if cpu_limit:
                 cpu_limits.append(cpu_limit)
         spawner.log.info(
-            "available limits -- mem: {} cpu:{}".format(mem_limits, cpu_limits)
+            f"available limits -- mem: {mem_limits} cpu:{cpu_limits}"
         )
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
@@ -161,10 +161,7 @@ async def get_notebook_options(spawner):
     if len(image_options) > 1 or spawner.hpc_available:
         options = ""
         for image in image_options:
-            options = options + " <option value='{}'> {} </option>".format(
-                json.dumps(image), image.get("display_name", image["name"])
-            )
-
+            options = options + f" <option value='{json.dumps(image)}'> {image.get('display_name', image['name'])} </option>"
         if spawner.hpc_available:
             hpc = """<input type="checkbox" id="hpc" name="hpc" style="display: none">
                 <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
@@ -208,10 +205,10 @@ async def get_notebook_options(spawner):
         select_images = '<select id="image" name="image" size="10" onchange="{}"> {} </select>'.format(
             js, options
         )
-        return "{}{}{}".format(select_images, image_description, hpc)
+        return f"{select_images}{image_description}{hpc}"
 
 
-def get_agave_access_data(spawner):
+def get_tapis_access_data(spawner):
     """
     Returns the access token and base URL cached in the agavepy file
     :return:
@@ -222,13 +219,11 @@ def get_agave_access_data(spawner):
     # do all tenant names follow that? usernames?
     token_file = os.path.join(get_user_token_dir(spawner.user.name), ".tapipy")
     spawner.log.info(
-        "spawner looking for token file: {} for user: {}".format(
-            token_file, spawner.user.name
-        )
+        f"spawner looking for token file: {token_file} for user: {spawner.user.name}"
     )
     if not os.path.exists(token_file):
         spawner.log.warning(
-            "spawner did not find a token file at {}".format(token_file)
+            f"spawner did not find a token file at {token_file}"
         )
         return None
     try:
@@ -239,17 +234,35 @@ def get_agave_access_data(spawner):
 
     try:
         spawner.access_token = data[0]["token"]
-        spawner.log.info("Setting token: {}".format(spawner.access_token))
-        spawner.refresh_token = data[0]["refresh_token"]
-        spawner.log.info("Setting refresh token: {}".format(spawner.refresh_token))
+        try:
+            decoded_data = jwt.decode(data[0]["token"], options={"verify_signature": False})
+        except Exception as e:
+            print(f"Error decoding access token: {e}")
+
+        refresh_data = None
+        if 'exp' in decoded_data and decoded_data['exp'] < time.time():
+            spawner.log.info(f"{spawner.user.name} has expired access token, attempting to refresh")
+            refresh_data = refresh_access_token(data[0]["refresh_token"], spawner.user.name)
+            spawner.log.info(f"Data retrieved from refreshing: {refresh_data}")
+
+        if refresh_data:
+            spawner.log.info(f"Refreshed access token for: {spawner.user.name}, attempting to save and update tapipy files")
+            save_token(refresh_data['access_token'], refresh_data['refresh_token'], spawner.user.name, refresh_data['created_at'], refresh_data['expires_in'], refresh_data['expires_at'])
+            spawner.access_token = refresh_data['access_token']
+            spawner.log.info(f"Setting token: {spawner.access_token}")
+            spawner.refresh_token = refresh_data['refresh_token']
+            spawner.log.info(f"Setting refresh token: {spawner.refresh_token}")
+        else:
+            spawner.log.info(f"Setting token: {spawner.access_token}")
+            spawner.refresh_token = data[0]["refresh_token"]
+            spawner.log.info(f"Setting refresh token: {spawner.refresh_token}")
+
         spawner.url = data[0]["api_server"]
-        spawner.log.info("Setting url: {}".format(spawner.url))
+        spawner.log.info(f"Setting url: {spawner.url}")
 
     except (TypeError, KeyError):
         spawner.log.warning(
-            "token file did not have an access token and/or an api_server. data: {}".format(
-                data
-            )
+            f"token file did not have an access token and/or an api_server. data: {data}"
         )
         return None
 
@@ -262,7 +275,7 @@ def get_tas_data(spawner):
     if not TAS_ROLE_PASS:
         spawner.log.error("No TAS_ROLE_PASS configured. Aborting.")
         return
-    url = "{}/users/username/{}".format(TAS_URL_BASE, spawner.user.name)
+    url = f"{TAS_URL_BASE}/users/username/{spawner.user.name}"
     headers = {"Content-type": "application/json", "Accept": "application/json"}
     try:
         rsp = requests.get(
@@ -272,18 +285,14 @@ def get_tas_data(spawner):
         )
     except Exception as e:
         spawner.log.error(
-            "Got an exception from TAS API. "
-            "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(e, url, TAS_ROLE_ACCT)
+            f"Got an exception from TAS API. \nException: {e}. url: {url}. TAS_ROLE_ACCT: {TAS_ROLE_ACCT}"
         )
         return
     try:
         data = rsp.json()
     except Exception as e:
         spawner.log.error(
-            "Did not get JSON from TAS API. rsp: {}"
-            "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(
-                rsp, e, url, TAS_ROLE_ACCT
-            )
+            f"Did not get JSON from TAS API. rsp: {rsp} \nException: {e}. url: {url}. TAS_ROLE_ACCT: {TAS_ROLE_ACCT}"
         )
         return
     spawner.tas_gid = None
@@ -293,51 +302,12 @@ def get_tas_data(spawner):
         spawner.tas_homedir = data["result"]["homeDirectory"]
     except Exception as e:
         spawner.log.error(
-            "Did not get attributes from TAS API. rsp: {}"
-            "Exception: {}. url: {}. TAS_ROLE_ACCT: {}".format(
-                rsp, e, url, TAS_ROLE_ACCT
-            )
+            f"Did not get attributes from TAS API. rsp: {rsp} \nException: {e}. url: {url}. TAS_ROLE_ACCT: {TAS_ROLE_ACCT}"
         )
         return
 
-    # first look for an "extended profile" record in agave metadata. such a record might have the
-    # gid to use for this user.
-    if (
-        spawner.access_token
-        and spawner.refresh_token
-        and spawner.url
-        and not spawner.tas_gid
-    ):
-        ag = get_oauth_client(spawner.url, spawner.access_token, spawner.refresh_token)
-        meta_name = "profile.{}.{}".format(TENANT, spawner.user.name)
-        q = "{'name': '" + meta_name + "'}"
-        spawner.log.info("using query: {}".format(q))
-        try:
-            rsp = ag.meta.listMetadata(q=q)
-        except Exception as e:
-            spawner.log.error(
-                "Got an exception trying to retrieve the extended profile. Exception: {}".format(
-                    e
-                )
-            )
-        try:
-            spawner.tas_gid = rsp[0].value["posix_gid"]
-        except IndexError:
-            spawner.tas_gid = None
-        except Exception as e:
-            spawner.log.error(
-                "Got an exception trying to retrieve the gid from the extended profile. Exception: {}".format(
-                    e
-                )
-            )
-    # if the instance has a configured TAS_GID to use we will use that; otherwise,
-    # we fall back on using the user's uid as the gid, which is (almost) always safe)
-    if not spawner.tas_gid:
-        spawner.tas_gid = spawner.configs.get("gid", spawner.tas_uid)
     spawner.log.info(
-        "Setting the following TAS data: uid:{} gid:{} homedir:{}".format(
-            spawner.tas_uid, spawner.tas_gid, spawner.tas_homedir
-        )
+        f"Setting the following TAS data: uid:{spawner.tas_uid} gid:{spawner.tas_gid} homedir:{spawner.tas_homedir}"
     )
 
 
@@ -349,12 +319,8 @@ def get_mounts(spawner):
     safe_username = safe_string(spawner.user.name).lower()
     safe_tenant = safe_string(TENANT).lower()
     safe_instance = safe_string(INSTANCE).lower()
-    tapipy_safe_name = "{}-{}-{}-jhub-tapipy".format(
-        safe_username, safe_tenant, safe_instance
-    )
-    current_safe_name = "{}-{}-{}-jhub-current".format(
-        safe_username, safe_tenant, safe_instance
-    )
+    tapipy_safe_name = f"{safe_username}-{safe_tenant}-{safe_instance}-jhub-tapipy"
+    current_safe_name = f"{safe_username}-{safe_tenant}-{safe_instance}-jhub-current"
 
     spawner.init_containers = [
         {
@@ -368,12 +334,12 @@ def get_mounts(spawner):
             "volumeMounts": [
                 {
                     "mountPath": "/tapis_data/.tapipy",
-                    "name": "{}-configmap".format(tapipy_safe_name),
+                    "name": f"{tapipy_safe_name}-configmap",
                     "subPath": ".tapipy",
                 },
                 {
                     "mountPath": "/tapis_data/current",
-                    "name": "{}-configmap".format(current_safe_name),
+                    "name": f"{current_safe_name}-configmap",
                     "subPath": "current",
                 },
                 {
@@ -392,11 +358,11 @@ def get_mounts(spawner):
 
     spawner.volumes = [
         {
-            "name": "{}-configmap".format(tapipy_safe_name),
+            "name": f"{tapipy_safe_name}-configmap",
             "configMap": {"name": tapipy_safe_name, "defaultMode": 0o0777},
         },
         {
-            "name": "{}-configmap".format(current_safe_name),
+            "name": f"{current_safe_name}-configmap",
             "configMap": {"name": current_safe_name, "defaultMode": 0o0777},
         },
         {
@@ -572,3 +538,11 @@ def get_licenses(spawner):
         spawner.log.warn(
             f"Got exception calling LSDYNA license for user: {spawner.user.name}; error: {e}"
         )
+
+
+# def map_uid(spawner):
+#     try:
+#         with open("/etc/passwd", "a") as f:
+#             f.write(f"\n{spawner.user.name}:x:{spawner.uid}:{spawner.gid}::/home/jupyter:/bin/bash")
+#     except Exception as e:
+#         spawner.log.warning(f"Error mapping uid for {spawner.user.name}: {e}")
