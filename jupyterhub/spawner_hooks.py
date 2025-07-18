@@ -1,25 +1,25 @@
 import ast
-import humanfriendly
 import json
 import os
 import re
-import requests
 import time
+
+import humanfriendly
 import jwt
+import requests
+from tornado import web
 
 from jupyterhub.common import (
-    TENANT,
     INSTANCE,
+    TENANT,
     get_tenant_configs,
-    safe_string,
     get_user_configs,
     projects_url,
-    tapis_service_token,
     refresh_access_token,
-    save_token
+    safe_string,
+    save_token,
+    tapis_service_token,
 )
-
-from tornado import web
 
 # TAS configuration:
 # base URL for TAS API.
@@ -102,11 +102,14 @@ def hook(spawner):
                 mem_limits.update({mem_limit: humanfriendly.parse_size(mem_limit)})
             if cpu_limit:
                 cpu_limits.append(cpu_limit)
-        spawner.log.info(
-            f"available limits -- mem: {mem_limits} cpu:{cpu_limits}"
-        )
+        spawner.log.info(f"available limits -- mem: {mem_limits} cpu:{cpu_limits}")
         spawner.mem_limit = max(mem_limits, key=mem_limits.get)
         spawner.cpu_limit = float(max(cpu_limits))
+
+        user = spawner.user.name
+        uid = str(spawner.uid)
+        gid = str(spawner.gid)
+
         # Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
         spawner.mem_guarantee = ".001K"
         spawner.cpu_guarantee = float(0.001)
@@ -116,7 +119,11 @@ def hook(spawner):
             "OMP_NUM_THREADS": max(cpu_limits),
             "OPENBLAS_NUM_THREADS": max(cpu_limits),
             "SCINCO_JUPYTERHUB_IMAGE": spawner.image,
+            "HUB_USER": user,
+            "HUB_UID": uid,
+            "HUB_GID": gid,
         }
+    print(f"Spawner environment: {spawner.environment}")
     get_mounts(spawner)
     get_projects(spawner)
     get_licenses(spawner)
@@ -161,7 +168,10 @@ async def get_notebook_options(spawner):
     if len(image_options) > 1 or spawner.hpc_available:
         options = ""
         for image in image_options:
-            options = options + f" <option value='{json.dumps(image)}'> {image.get('display_name', image['name'])} </option>"
+            options = (
+                options
+                + f" <option value='{json.dumps(image)}'> {image.get('display_name', image['name'])} </option>"
+            )
         if spawner.hpc_available:
             hpc = """<input type="checkbox" id="hpc" name="hpc" style="display: none">
                 <label for="hpc" id="hpc_label" style="display: none">Run on HPC</label>
@@ -222,9 +232,7 @@ def get_tapis_access_data(spawner):
         f"spawner looking for token file: {token_file} for user: {spawner.user.name}"
     )
     if not os.path.exists(token_file):
-        spawner.log.warning(
-            f"spawner did not find a token file at {token_file}"
-        )
+        spawner.log.warning(f"spawner did not find a token file at {token_file}")
         return None
     try:
         data = json.load(open(token_file))
@@ -235,22 +243,37 @@ def get_tapis_access_data(spawner):
     try:
         spawner.access_token = data[0]["token"]
         try:
-            decoded_data = jwt.decode(data[0]["token"], options={"verify_signature": False})
+            decoded_data = jwt.decode(
+                data[0]["token"], options={"verify_signature": False}
+            )
         except Exception as e:
             print(f"Error decoding access token: {e}")
 
         refresh_data = None
-        if 'exp' in decoded_data and decoded_data['exp'] < time.time():
-            spawner.log.info(f"{spawner.user.name} has expired access token, attempting to refresh")
-            refresh_data = refresh_access_token(data[0]["refresh_token"], spawner.user.name)
+        if "exp" in decoded_data and decoded_data["exp"] < time.time():
+            spawner.log.info(
+                f"{spawner.user.name} has expired access token, attempting to refresh"
+            )
+            refresh_data = refresh_access_token(
+                data[0]["refresh_token"], spawner.user.name
+            )
             spawner.log.info(f"Data retrieved from refreshing: {refresh_data}")
 
         if refresh_data:
-            spawner.log.info(f"Refreshed access token for: {spawner.user.name}, attempting to save and update tapipy files")
-            save_token(refresh_data['access_token'], refresh_data['refresh_token'], spawner.user.name, refresh_data['created_at'], refresh_data['expires_in'], refresh_data['expires_at'])
-            spawner.access_token = refresh_data['access_token']
+            spawner.log.info(
+                f"Refreshed access token for: {spawner.user.name}, attempting to save and update tapipy files"
+            )
+            save_token(
+                refresh_data["access_token"],
+                refresh_data["refresh_token"],
+                spawner.user.name,
+                refresh_data["created_at"],
+                refresh_data["expires_in"],
+                refresh_data["expires_at"],
+            )
+            spawner.access_token = refresh_data["access_token"]
             spawner.log.info(f"Setting token: {spawner.access_token}")
-            spawner.refresh_token = refresh_data['refresh_token']
+            spawner.refresh_token = refresh_data["refresh_token"]
             spawner.log.info(f"Setting refresh token: {spawner.refresh_token}")
         else:
             spawner.log.info(f"Setting token: {spawner.access_token}")
@@ -373,6 +396,10 @@ def get_mounts(spawner):
             "name": current_safe_name,
             "emptyDir": {},
         },
+        # {
+        #     "name": "extrausers",
+        #     "configMap": {"name": f"{safe_username}-passwd", "defaultMode": 0o0444},
+        # }
     ]
     spawner.volume_mounts = [
         {
@@ -385,6 +412,11 @@ def get_mounts(spawner):
             "name": current_safe_name,
             "subPath": "current",
         },
+        # {
+        #     "name": "extrausers",
+        #     "mountPath": "/var/lib/extrausers/passwd",
+        #     "readOnly": "true"
+        # }
     ]
     volume_mounts = spawner.configs.get("volume_mounts")
 
@@ -481,23 +513,30 @@ def get_projects(spawner):
             spawner.log.warn(f"Did not get a projectId for project: {project}")
             continue
 
+        server = spawner.network_storage
+        mountPath = f"{spawner.container_projects_root_dir}/{project_id}"
+        if uuid == "7997906542076432871-242ac11c-0001-012":
+            # server = server.replace("151", "166")
+            continue
+            path = "/corral/main/projects/NHERI/community"
+        else:
+            path = f"{spawner.host_projects_root_dir}/{uuid}"
+
         spawner.volumes.append(
             {
                 "name": f"project-{safe_string(uuid).lower()}",
                 "nfs": {
-                    "server": spawner.network_storage,
-                    "path": f"{spawner.host_projects_root_dir}/{uuid}",
+                    "server": server,
+                    "path": path,
                     "readOnly": False,
                 },
             }
         )
 
         spawner.volume_mounts.append(
-            {
-                "mountPath": f"{spawner.container_projects_root_dir}/{project_id}",
-                "name": f"project-{safe_string(uuid).lower()}"
-            }
+            {"mountPath": mountPath, "name": f"project-{safe_string(uuid).lower()}"}
         )
+
     spawner.log.info(spawner.volumes)
     spawner.log.info(spawner.volume_mounts)
 
@@ -538,11 +577,3 @@ def get_licenses(spawner):
         spawner.log.warn(
             f"Got exception calling LSDYNA license for user: {spawner.user.name}; error: {e}"
         )
-
-
-# def map_uid(spawner):
-#     try:
-#         with open("/etc/passwd", "a") as f:
-#             f.write(f"\n{spawner.user.name}:x:{spawner.uid}:{spawner.gid}::/home/jupyter:/bin/bash")
-#     except Exception as e:
-#         spawner.log.warning(f"Error mapping uid for {spawner.user.name}: {e}")

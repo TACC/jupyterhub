@@ -487,8 +487,9 @@ c.JupyterHub.template_paths = ["/usr/local/share/jupyterhub/templates/custom_tem
 #  Some spawners allow shell-style expansion here, allowing you to use
 #  environment variables. Most, including the default, do not. Consult the
 #  documentation for your spawner to verify!
-# c.Spawner.cmd = ['jupyterhub-singleuser']
-c.Spawner.cmd = ["jupyterhub-singleuser"]
+c.Spawner.cmd = ['jupyterhub-singleuser']
+# c.Spawner.cmd = ["poetry", "run", "jupyterhub-singleuser"]
+
 ## Maximum number of consecutive failures to allow before shutting down
 #  JupyterHub.
 #
@@ -948,3 +949,4 @@ c.KubeSpawner.delete_stopped_pods = False
 c.KubeSpawner.pre_spawn_hook = hook
 c.KubeSpawner.options_form = get_notebook_options
 c.KubeSpawner.options_from_form = parse_form_data
+# c.KubeSpawner.after_pod_created_hook = map_uid

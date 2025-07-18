@@ -1,10 +1,10 @@
+import json
 import os
 import string
 import sys
-import json
-import requests
 import time
 
+import requests
 from tapipy.tapis import Tapis
 
 INSTANCE = os.environ.get("INSTANCE")
@@ -12,6 +12,7 @@ TENANT = os.environ.get("TENANT")
 tapis_service_token = os.environ.get("TAPIS_SERVICE_TOKEN")
 projects_url = os.environ.get("PROJECTS_URL", "https://designsafe-ci.org")
 tapis_base_url = os.environ.get("TAPIS_BASE_URL", "https://designsafe.tapis.io")
+meta_base_url = os.environ.get("META_BASE_URL", "https://tacc.tapis.io")
 database = os.environ.get("TAPIS_DATABASE")
 collection = os.environ.get("TAPIS_COLLECTION")
 
@@ -25,11 +26,11 @@ def refresh_access_token(refresh_token, username):
         data = {
             "refresh_token": refresh_token,
         }
-        res = requests.put('https://designsafe.tapis.io/v3/tokens', json=data)
+        res = requests.put("https://designsafe.tapis.io/v3/tokens", json=data)
         print(res)
         resp_data = res.json()
         print(resp_data)
-        new_access_token = resp_data['result']['access_token']['access_token']
+        new_access_token = resp_data["result"]["access_token"]["access_token"]
         refresh_token = resp_data["result"]["refresh_token"]["refresh_token"]
 
         expires_in = resp_data["result"]["access_token"]["expires_in"]
@@ -39,7 +40,7 @@ def refresh_access_token(refresh_token, username):
             "refresh_token": refresh_token,
             "created_at": time.time(),
             "expires_in": expires_in,
-            "expires_at": expires_at
+            "expires_at": expires_at,
         }
     except Exception as e:
         print(f"Unable to refresh access token for {username}, error: {e}")
@@ -50,8 +51,8 @@ def get_user_token_dir(username):
 
 
 def save_token(
-        access_token, refresh_token, username, created_at, expires_in, expires_at
-    ):
+    access_token, refresh_token, username, created_at, expires_in, expires_at
+):
     try:
         configs = get_tenant_configs()
         tenant_id = configs.get("tapis_tenant_id")
@@ -92,7 +93,9 @@ def save_token(
         }
         with open(os.path.join(get_user_token_dir(username), "current"), "w") as f:
             json.dump(d, f)
-        print(f"Saved CLI cache file to {os.path.join(get_user_token_dir(username), 'current')}")
+        print(
+            f"Saved CLI cache file to {os.path.join(get_user_token_dir(username), 'current')}"
+        )
     except Exception as e:
         print(f"Unable to save CLI cache file for {username}, error: {e}")
 
@@ -104,7 +107,7 @@ def get_config_metadata_name():
 
 def get_tenant_configs():
     """Retrive tenant config from metadata"""
-    t = Tapis(base_url=tapis_base_url, jwt=tapis_service_token)
+    t = Tapis(base_url=meta_base_url, jwt=tapis_service_token)
     q = {"name": get_config_metadata_name()}
     print(f"tenant query: {q}")
     metadata = json.loads(
@@ -115,7 +118,7 @@ def get_tenant_configs():
 
 def get_user_configs(username):
     """Retrieve any groups user belongs to"""
-    t = Tapis(base_url=tapis_base_url, jwt=tapis_service_token)
+    t = Tapis(base_url=meta_base_url, jwt=tapis_service_token)
     q = {"value.user": username, "value.tenant": TENANT, "value.instance": INSTANCE}
     print(f"user query: {q}")
     metadata = json.loads(
@@ -124,9 +127,7 @@ def get_user_configs(username):
     return metadata
 
 
-def safe_string(
-    to_escape, safe=None, escape_char="-"
-):
+def safe_string(to_escape, safe=None, escape_char="-"):
     """Escape a string so that it only contains characters in a safe set.
     Characters outside the safe list will be escaped with _%x_,
     where %x is the hex value of the character.
@@ -146,7 +147,6 @@ if sys.version_info >= (3,):
 
     def _ord(byte):
         return byte
-
 
 else:
     _ord = ord
