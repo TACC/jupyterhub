@@ -49,6 +49,12 @@ def hook(spawner):
     spawner.extra_pod_config = spawner.configs.get("extra_pod_config", {})
     spawner.extra_container_config = spawner.configs.get("extra_container_config", {})
 
+    # for user_conf in spawner.user_configs:
+    #     if "extra_pod_config" in user_conf["value"]:
+    #         merge_configs(
+    #             user_conf["value"]["extra_pod_config"], spawner.extra_pod_config
+    #         )
+
     if (
         len(spawner.configs.get("images")) == 1 and not spawner.hpc_available
     ):  # only 1 image option, so we skipped the form
@@ -113,19 +119,21 @@ def hook(spawner):
         # Set the guarantees really low because when None or 0,it sets a resource request for an amount equal to the limit
         spawner.mem_guarantee = ".001K"
         spawner.cpu_guarantee = float(0.001)
+        spawner.cmty_writers = spawner.configs.get("cmty_writers", [])
         spawner.environment = {
             "MKL_NUM_THREADS": max(cpu_limits),
             "NUMEXPR_NUM_THREADS": max(cpu_limits),
             "OMP_NUM_THREADS": max(cpu_limits),
             "OPENBLAS_NUM_THREADS": max(cpu_limits),
             "SCINCO_JUPYTERHUB_IMAGE": spawner.image,
+            "MLM_LICENSE_FILE": spawner.configs.get("mlm_license_file", ""),
             "HUB_USER": user,
             "HUB_UID": uid,
             "HUB_GID": gid,
         }
     print(f"Spawner environment: {spawner.environment}")
     get_mounts(spawner)
-    get_projects(spawner)
+    # get_projects(spawner)
     get_licenses(spawner)
 
 
@@ -142,8 +150,8 @@ async def parse_form_data(formdata, spawner):
 
 
 async def get_notebook_options(spawner):
-    spawner.configs = get_tenant_configs()
-    spawner.user_configs = get_user_configs(spawner.user.name)
+    spawner.configs = await get_tenant_configs()
+    spawner.user_configs = await get_user_configs(spawner.user.name)
 
     image_options = spawner.configs.get("images")
 
@@ -515,12 +523,15 @@ def get_projects(spawner):
 
         server = spawner.network_storage
         mountPath = f"{spawner.container_projects_root_dir}/{project_id}"
-        if uuid == "7997906542076432871-242ac11c-0001-012":
-            # server = server.replace("151", "166")
-            continue
-            path = "/corral/main/projects/NHERI/community"
-        else:
-            path = f"{spawner.host_projects_root_dir}/{uuid}"
+        # if uuid == "7997906542076432871-242ac11c-0001-012":
+        #     if spawner.user.name in spawner.cmty_writers:
+        #         for vol in spawner.volumes:
+        #             if vol['name'] == 'communitydata':
+        #                 del vol
+                        # vol['nfs']['readOnly'] = False
+            # path = "/corral/main/projects/NHERI/community"
+
+        path = f"{spawner.host_projects_root_dir}/{uuid}"
 
         spawner.volumes.append(
             {
